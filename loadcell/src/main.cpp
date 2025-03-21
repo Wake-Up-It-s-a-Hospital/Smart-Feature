@@ -48,7 +48,7 @@ float delta_filter(int index, float* data) {
   static float prev = 0;
   if (index == 0) prev = data[0];
   float delta = data[index] - prev;
-  if (abs(delta) < 0.05) return prev;
+  if (abs(delta) < 0.5) return prev;
   prev = data[index];
   return data[index];
 }
