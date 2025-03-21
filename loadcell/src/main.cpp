@@ -15,6 +15,7 @@ const int delay_interval = 500;
 const int sample_count = total_duration / delay_interval;
 
 float weights[sample_count];
+bool experiment_ready = true;
 
 // ===== 필터링 함수 정의 =====
 float ema_filter(int index, float alpha, float* data) {
@@ -48,7 +49,7 @@ float delta_filter(int index, float* data) {
   static float prev = 0;
   if (index == 0) prev = data[0];
   float delta = data[index] - prev;
-  if (abs(delta) < 0.5) return prev;
+  if (abs(delta) < 0.05) return prev;
   prev = data[index];
   return data[index];
 }
@@ -62,13 +63,12 @@ float kalman_filter(int index, float* data) {
     last_measurement = data[0];
   }
 
-  // Adaptive Q, R based on measurement difference
   float measurement = data[index];
   float measurement_diff = abs(measurement - last_measurement);
   last_measurement = measurement;
 
-  float Q_kalman = 0.001 + 0.05 * measurement_diff; // dynamic process noise
-  float R_kalman = 0.01 + 0.1 * measurement_diff;   // dynamic measurement noise
+  float Q_kalman = 0.001 + 0.05 * measurement_diff;
+  float R_kalman = 0.01 + 0.1 * measurement_diff;
 
   P = P + Q_kalman;
   float K = P / (P + R_kalman);
@@ -113,26 +113,20 @@ float compute_score(float* data, const char* label) {
   return total_score;
 }
 
-void setup() {
-  Serial.begin(115200);
-  scale.set_scale();
-  scale.tare();
-
-  Serial.println("Sensor Initializing...");
+void run_experiment() {
+  Serial.println("\n센서 안정화 중...");
   delay(5000);
-  Serial.println("ESP32 HX711 Stability Test Start");
+  Serial.println("측정 시작");
 
   unsigned long start_time = millis();
   unsigned long last_second_mark = start_time;
 
-  // 측정값 수집
   for (int i = 0; i < sample_count; i++) {
     scale.set_scale(calibration_factor);
     float raw = scale.get_units();
     float corrected = (raw * slope) + intercept;
     weights[i] = corrected;
 
-    // 경과 시간 출력 (1초 단위)
     unsigned long current_time = millis();
     if (current_time - last_second_mark >= 1000) {
       int seconds_elapsed = (current_time - start_time) / 1000;
@@ -144,7 +138,6 @@ void setup() {
     delay(delay_interval);
   }
 
-  // 필터링 배열
   float ema[sample_count];
   float median[sample_count];
   float delta[sample_count];
@@ -162,8 +155,22 @@ void setup() {
   compute_score(median, "Median Filter");
   compute_score(delta, "변화량 조정");
   compute_score(kalman, "칼만 필터");
+
+  Serial.println("\n아무 키나 입력하면 실험을 다시 시작합니다.");
+  experiment_ready = true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  scale.set_scale();
+  scale.tare();
+  Serial.println("ESP32 HX711 Stability Test Ready. 아무 키나 누르면 시작합니다.");
 }
 
 void loop() {
-  // 비워둠
+  if (experiment_ready && Serial.available()) {
+    Serial.read(); // 입력 소비
+    experiment_ready = false;
+    run_experiment();
+  }
 }
