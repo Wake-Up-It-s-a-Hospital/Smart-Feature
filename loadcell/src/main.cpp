@@ -83,6 +83,7 @@ void print_statistics(float* data, const char* label) {
   float max_val = data[0];
   float min_val = data[0];
 
+  // RMS 계산용 합, 최댓값/최솟값 찾기
   for (int i = 0; i < sample_count; i++) {
     squared_sum += data[i] * data[i];
     if (data[i] > max_val) max_val = data[i];
@@ -91,14 +92,49 @@ void print_statistics(float* data, const char* label) {
 
   float rms_mean = sqrt(squared_sum / sample_count);
 
+  // 표준편차 계산
   float stddev = 0;
   for (int i = 0; i < sample_count; i++) {
     stddev += pow(data[i] - rms_mean, 2);
   }
   stddev = sqrt(stddev / sample_count);
 
+  // 변화폭
   float peak = max_val - min_val;
 
+  // ==== 추가 지표 ====
+
+  // MAD (Mean Absolute Difference)
+  float mad = 0;
+  for (int i = 1; i < sample_count; i++) {
+    mad += abs(data[i] - data[i - 1]);
+  }
+  mad /= (sample_count - 1);
+
+  // 지터 (샘플 간 변화의 표준편차)
+  float delta_sum = 0;
+  for (int i = 1; i < sample_count; i++) {
+    float diff = data[i] - data[i - 1];
+    delta_sum += pow(diff - mad, 2);  // mad를 평균으로 사용
+  }
+  float jitter = sqrt(delta_sum / (sample_count - 1));
+
+  // 최소 변화 구간 길이 (안정 구간)
+  const float stability_threshold = 0.05;  // 변화량이 이 값보다 작으면 안정적이라 판단
+  int max_stable_count = 0;
+  int current_stable_count = 0;
+  for (int i = 1; i < sample_count; i++) {
+    if (abs(data[i] - data[i - 1]) < stability_threshold) {
+      current_stable_count++;
+      if (current_stable_count > max_stable_count)
+        max_stable_count = current_stable_count;
+    } else {
+      current_stable_count = 0;
+    }
+  }
+  float stable_duration_sec = (max_stable_count + 1) * (delay_interval / 1000.0); // 구간 길이를 초로 환산
+
+  // ==== 출력 ====
   Serial.print("\n<실험 결과: ");
   Serial.print(label);
   Serial.println(">");
@@ -108,6 +144,15 @@ void print_statistics(float* data, const char* label) {
   Serial.println(stddev, 2);
   Serial.print("변화폭: ");
   Serial.println(peak, 2);
+  Serial.print("MAD(평균 변화량): ");
+  Serial.println(mad, 4);
+  Serial.print("지터(샘플 간 변동성): ");
+  Serial.println(jitter, 4);
+  Serial.print("최대 안정 구간 길이: ");
+  Serial.print(stable_duration_sec, 2);
+  Serial.println("초");
+  Serial.print("총 실험 시간: 30초\n총 샘플 수: ");
+  Serial.println(sample_count);
 }
 
 // ===== 실험 함수 =====
