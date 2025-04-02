@@ -17,7 +17,7 @@ const int sample_count = total_duration / delay_interval;
 float weights[sample_count];
 bool experiment_ready = true;
 
-// ===== 필터링 함수 정의 =====
+// ===== 필터 함수들 =====
 float ema_filter(int index, float alpha, float* data) {
   static float prev = 0;
   if (index == 0) prev = data[0];
@@ -34,7 +34,6 @@ float median_filter(int index, float* data) {
   for (int i = start; i <= end; i++) {
     temp[j++] = data[i];
   }
-  // 정렬
   for (int i = 0; i < j - 1; i++) {
     for (int k = i + 1; k < j; k++) {
       if (temp[i] > temp[k]) {
@@ -78,41 +77,40 @@ float kalman_filter(int index, float* data) {
   return x;
 }
 
-// ===== 통계 및 점수 계산 =====
-float compute_score(float* data, const char* label) {
-  float abs_sum = 0, mean = 0, stddev = 0, max_val = data[0], min_val = data[0];
+// ===== 통계 출력 함수 =====
+void print_statistics(float* data, const char* label) {
+  float squared_sum = 0;
+  float max_val = data[0];
+  float min_val = data[0];
 
   for (int i = 0; i < sample_count; i++) {
-    abs_sum += abs(data[i]);
-    mean += data[i];
+    squared_sum += data[i] * data[i];
     if (data[i] > max_val) max_val = data[i];
     if (data[i] < min_val) min_val = data[i];
   }
-  mean /= sample_count;
-  float avg_abs = abs_sum / sample_count;
 
+  float rms_mean = sqrt(squared_sum / sample_count);
+
+  float stddev = 0;
   for (int i = 0; i < sample_count; i++) {
-    stddev += pow(data[i] - mean, 2);
+    stddev += pow(data[i] - rms_mean, 2);
   }
   stddev = sqrt(stddev / sample_count);
 
   float peak = max_val - min_val;
-  float score_avg = 60.0 / (1.0 + avg_abs);
-  float score_std = 25.0 / (1.0 + stddev);
-  float score_peak = 15.0 / (1.0 + peak);
-  float total_score = score_avg + score_std + score_peak;
 
   Serial.print("\n<실험 결과: ");
   Serial.print(label);
   Serial.println(">");
-  Serial.print("무게 변화량: "); Serial.println(score_avg, 2);
-  Serial.print("표준편차: "); Serial.println(score_std, 2);
-  Serial.print("최대 변화폭: "); Serial.println(score_peak, 2);
-  Serial.print("총점: "); Serial.println(total_score, 2);
-
-  return total_score;
+  Serial.print("RMS 평균: ");
+  Serial.println(rms_mean, 3);
+  Serial.print("표준편차: ");
+  Serial.println(stddev, 2);
+  Serial.print("변화폭: ");
+  Serial.println(peak, 2);
 }
 
+// ===== 실험 함수 =====
 void run_experiment() {
   Serial.println("\n센서 안정화 중...");
   delay(5000);
@@ -150,16 +148,17 @@ void run_experiment() {
     kalman[i] = kalman_filter(i, weights);
   }
 
-  compute_score(weights, "바닐라");
-  compute_score(ema, "EMA");
-  compute_score(median, "Median Filter");
-  compute_score(delta, "변화량 조정");
-  compute_score(kalman, "칼만 필터");
+  print_statistics(weights, "바닐라");
+  print_statistics(ema, "EMA");
+  print_statistics(median, "Median Filter");
+  print_statistics(delta, "변화량 조정");
+  print_statistics(kalman, "칼만 필터");
 
   Serial.println("\n아무 키나 입력하면 실험을 다시 시작합니다.");
   experiment_ready = true;
 }
 
+// ===== 기본 설정 =====
 void setup() {
   Serial.begin(115200);
   scale.set_scale();
