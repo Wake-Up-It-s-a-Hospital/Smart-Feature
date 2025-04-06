@@ -1,3 +1,5 @@
+// 이 코드는 EMA의 최적 Alpha 값을 찾아주는 실험 코드입니다.
+
 #include <HX711.h>
 #include <math.h>
 

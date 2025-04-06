@@ -1,7 +1,7 @@
 import serial
 import matplotlib.pyplot as plt
 
-ser = serial.Serial('COM2', 115200)
+ser = serial.Serial('COM5', 115200)
 data = []
 
 plt.ion()
