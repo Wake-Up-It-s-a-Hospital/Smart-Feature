@@ -16,21 +16,52 @@
 - ✅ **로드셀 센서 기반 무게 측정**  
   HX711 모듈을 사용해 링거 팩의 무게를 정밀하게 측정합니다.
 
-- ⏳ **서버 전송 기능 구현 예정**  
-  무게 데이터를 서버로 업로드하는 기능은 추후 추가될 예정입니다.
+- ✅ **서버 전송 기능 구현 예정**  
+  무게 데이터를 서버(Firebase RTDB)로 업로드하여 보관합니다.
 
-- ⏳ **데이터 시각화 및 대시보드 구현 예정**  
-  서버로 업로드 된 데이터를 시각화하고, 알림 등의 부가기능은 추후 추가될 예정입니다.
+- ✅ **데이터 시각화 및 대시보드 구현 예정**  
+  서버로 업로드 된 데이터를 시각화합니다.
+  알림 등의 부가기능은 추후 추가될 예정입니다.
 
 ---
 
 ## 📁 프로젝트 파일 구조
 
 ```
-loadcell/
-├── src/main.cpp           # 로드셀 무게 측정 코드
-├── utils/                 # 서버 업로드 및 대시보드 코드 (WIP)
-└── 기타 Platform IO 파일들
+loadcell: HX711을 이용하여 ESP32로 로드셀 무게 측정, 입력값 보정과 남은 시간 예측
+├── include
+├── lib
+│   └── HX711
+│       ├── HX711.cpp
+│       ├── HX711.h
+│       └── examples
+│           ├── HX711Serial
+│           └── HX711SerialBegin
+├── src
+│   └── main.cpp
+└── test
+    ├── adaptive_ema.cpp
+    └── filtertest.cpp
+
+Dashboard: Firebase RTDB에 업로드 된 센서 값을 불러와서 간단하게 시각화하는 대시보드 (리액트 기반)
+└── firebase-iv-dashboard
+    ├── eslint.config.js
+    ├── index.html
+    ├── node_modules
+    │   └── tslib
+    │       ├── tslib.es6.html
+    │       ├── tslib.es6.js
+    │       ├── tslib.html
+    │       └── tslib.js
+    ├── src
+    │   ├── App.css
+    │   ├── App.jsx
+    │   ├── components
+    │   │   └── ChartComponent.jsx
+    │   ├── firebase.js
+    │   ├── index.css
+    │   └── main.jsx
+    └── vite.config.js
 ```
 
 ---
