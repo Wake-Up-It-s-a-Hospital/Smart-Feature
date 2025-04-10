@@ -10,7 +10,7 @@
 
 #include <HX711.h>
 #include <WiFi.h>
-#include <FirebaseESP32.h>
+#include <Firebase_ESP_Client.h>
 #include <math.h>
 
 // Function prototypes
@@ -20,10 +20,11 @@ void connectToWiFi();
 void setupFirebase();
 
 #define WIFI_SSID "MERCUSYS_FF46"
-#define WIFI_PASSWORD "Yoonsung123"
+#define WIFI_PASSWORD "64196374"
 #define FIREBASE_PROJECT_ID "smart-iv-pole-f98ce"
 #define API_KEY "AIzaSyA-CdsRfm7pIXDNQClaco2KWnapFZfOaGs"
 #define DATABASE_URL "https://smart-iv-pole-f98ce-default-rtdb.asia-southeast1.firebasedatabase.app/"
+
 FirebaseAuth auth;
 FirebaseConfig config;
 FirebaseData fbdo;
@@ -45,8 +46,6 @@ float ema_previous = 0;
 // 측정 설정
 const int delay_interval = 100;         // 100ms 간격
 const int max_data = 300;               // 최대 저장 데이터 수
-const int regression_window = 30;       // 선형회귀에 사용할 데이터 수
-
 float raw_data[max_data];               // 원본 측정값
 float ema_data[max_data];               // EMA 필터 적용값
 int data_index = 0;                     // 현재 데이터 수
@@ -71,6 +70,7 @@ float compute_slope(float* y_values, int start_idx, int count, float interval_se
   return numerator / denominator;
 }
 
+// ===== Firebase 업로드 함수 =====
 void upload_to_firebase(float weight, float remaining_time) {
   if (Firebase.ready()) {
     String path_weight = "/infusion/current_weight";
@@ -119,16 +119,37 @@ void predict_remaining_time() {
   float current_weight = ema_data[data_index - 1];
   float remaining_sec = current_weight / abs(slope_estimate);
 
-  Serial.print("📉 추정 기울기: ");
-  Serial.print(slope_estimate, 4);
-  Serial.print(" g/s, 남은 무게: ");
-  Serial.print(current_weight, 2);
-  Serial.print(" g, 예상 시간: ");
-  Serial.print(remaining_sec, 1);
-  Serial.println(" 초");
+  Serial.printf("📉 기울기: %.4f g/s | 무게: %.2f g | 남은 시간: %.1f 초\n",
+                slope_estimate, current_weight, remaining_sec);
+
   upload_to_firebase(current_weight, remaining_sec);
 }
 
+void printFirebaseDebugInfo() {
+  Serial.println("=== 🔍 Firebase 디버그 정보 출력 ===");
+
+  Serial.print("Wi-Fi 상태: ");
+  Serial.println(WiFi.status() == WL_CONNECTED ? "연결됨 ✅" : "연결 안 됨 ❌");
+
+  Serial.print("API 키: ");
+  Serial.println(config.api_key.c_str());  // ✅ 수정
+
+  Serial.print("DB URL: ");
+  Serial.println(config.database_url.c_str());  // ✅ 수정
+
+  Serial.print("인증 UID: ");
+  Serial.println(auth.token.uid.length() > 0 ? auth.token.uid.c_str() : "(비어 있음)");
+
+  Serial.print("fbdo 객체 연결 여부: ");
+  Serial.println(Firebase.ready() ? "✅ 준비 완료" : "❌ 아직 준비되지 않음");
+
+  Serial.print("fbdo 에러 메시지: ");
+  Serial.println(fbdo.errorReason().c_str());  // ✅ 수정
+
+  Serial.println("====================================");
+}
+
+// ===== Wi-Fi 연결 =====
 void connectToWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Wi-Fi 연결 중");
@@ -139,14 +160,27 @@ void connectToWiFi() {
   Serial.println("\n✅ Wi-Fi 연결 성공");
 }
 
+// ===== Firebase 초기화 =====
 void setupFirebase() {
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;
-  auth.user.email = "";
-  auth.user.password = "";
 
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
+
+  Serial.print("Firebase 초기화 중...");
+  int count = 0;
+  while (!Firebase.ready() && count++ < 20) {
+    Serial.print(".");
+    delay(500);
+  }
+
+  if (Firebase.ready()) {
+    Serial.println("\n✅ Firebase 초기화 성공!");
+  } else {
+    Serial.println("\n❌ Firebase 초기화 실패");
+    printFirebaseDebugInfo();  // 🔍 상세 정보 출력
+  }
 }
 
 // ===== 초기 설정 =====
@@ -187,13 +221,12 @@ void loop() {
   float ema = (data_index == 0) ? corrected : alpha * corrected + (1 - alpha) * ema_previous;
   ema_previous = ema;
 
-  // 데이터 저장 (FIFO 방식)
+  // FIFO 저장
   if (data_index < max_data) {
     raw_data[data_index] = corrected;
     ema_data[data_index] = ema;
     data_index++;
   } else {
-    // 데이터 이동: 가장 오래된 값 삭제, 한 칸씩 앞으로 밀기
     for (int i = 1; i < max_data; i++) {
       raw_data[i - 1] = raw_data[i];
       ema_data[i - 1] = ema_data[i];
@@ -202,8 +235,6 @@ void loop() {
     ema_data[max_data - 1] = ema;
   }
 
-  // 예측 수행
   predict_remaining_time();
-
   delay(delay_interval);
 }
