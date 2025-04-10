@@ -1,106 +1,144 @@
-#include <HX711.h>
+// 데이터 플로우
+// 100ms 간격으로 데이터 측정 => EMA 필터로 입력값 안정화 => 선형회귀 수행(데이터가 1개일때는 예외처리) => 100ms 간격으로 데이터 측정.....
 
-#define DOUT  4  // ESP32에서 데이터 핀 설정 (예: GPIO 4)
-#define CLK   5  // ESP32에서 클럭 핀 설정 (예: GPIO 5)
+// max_data: 측정 가능한 최대 데이터 수 → 고정 크기 배열로 관리
+// 100ms 간격으로 데이터 측정
+// EMA 필터로 입력값 안정화 (α=0.01)
+// 최근 회귀 윈도우 길이만큼 데이터를 기준으로 선형 회귀 수행
+// 데이터가 2개 미만이거나 기울기 너무 작을 경우 예외 처리
+// 100ms 간격으로 루프가 계속 돌아가면서 잔여 시간 출력
+
+#include <HX711.h>
+#include <math.h>
+
+#define DOUT  4
+#define CLK   5
 
 HX711 scale(DOUT, CLK);
 
-float calibration_factor = -1500; // ESP32에서도 동일한 보정 계수 사용
+// 보정값
+float calibration_factor = -1500;
+float slope = -6.80;
+float intercept = 0;
 
-float slope = -6.80;  // 보정된 변환 계수
-float intercept = 0; // 변환 보정값
+// EMA 필터 설정
+const float alpha = 0.01;
+float ema_previous = 0;
 
-float previous_weight = 0; // 이전 무게 저장
-unsigned long previous_time = 0; // 이전 시간 저장
-float infusion_rate = 0; // 투여 속도 (g/s)
+// 측정 설정
+const int delay_interval = 100;         // 100ms 간격
+const int max_data = 300;               // 최대 저장 데이터 수
+const int regression_window = 30;       // 선형회귀에 사용할 데이터 수
 
-const float target_weight = 20.0; // 목표 무게 설정 (20g 이하로 떨어지는 시점)
+float raw_data[max_data];               // 원본 측정값
+float ema_data[max_data];               // EMA 필터 적용값
+int data_index = 0;                     // 현재 데이터 수
 
-unsigned long last_update_time = 0; // 마지막 flow speed & 예측 시간 업데이트
-const unsigned long update_interval = 500; // 500ms마다 업데이트
+bool is_running = true;
 
-float weight_sum = 0; // 지난 500ms 동안 측정된 무게 합
-int weight_count = 0; // 지난 500ms 동안 측정된 무게 개수
+// ===== 선형 회귀 함수 =====
+float compute_slope(float* y_values, int start_idx, int count, float interval_sec) {
+  float sum_x = 0, sum_y = 0, sum_xy = 0, sum_x2 = 0;
+  for (int i = 0; i < count; i++) {
+    float x = i * interval_sec;
+    float y = y_values[start_idx + i];
+    sum_x += x;
+    sum_y += y;
+    sum_xy += x * y;
+    sum_x2 += x * x;
+  }
 
-float first_weight_in_window = 0; // 500ms 구간의 첫 번째 무게 값 저장
-
-void setup() {
-  Serial.begin(115200);  // ESP32는 115200bps가 더 적절함
-  Serial.println("ESP32 HX711 Calibration");
-
-  scale.set_scale();
-  scale.tare(); // 0점 조정 (초기화)
-
-  long zero_factor = scale.read_average();
-  Serial.print("Zero factor: ");
-  Serial.println(zero_factor);
-
-  previous_weight = 0;
-  previous_time = millis();
-  last_update_time = millis();
+  float numerator = (count * sum_xy) - (sum_x * sum_y);
+  float denominator = (count * sum_x2) - (sum_x * sum_x);
+  if (denominator == 0) return NAN;
+  return numerator / denominator;
 }
 
+// ===== 투여 시간 예측 루틴 =====
+void predict_remaining_time() {
+  if (data_index < 2) {
+    Serial.println("⏳ 데이터 부족으로 예측 불가");
+    return;
+  }
+
+  int use_count = data_index;
+  int start_idx = 0;
+
+  float slope_estimate = compute_slope(ema_data, start_idx, use_count, delay_interval / 1000.0);
+
+  if (isnan(slope_estimate)) {
+    Serial.println("❌ 기울기 계산 불가 (NaN)");
+    return;
+  }
+
+  if (abs(slope_estimate) < 0.001) {
+    Serial.println("⚠️ 변화량 너무 작아 예측 정확도 낮음");
+    return;
+  }
+
+  float current_weight = ema_data[data_index - 1];
+  float remaining_sec = current_weight / abs(slope_estimate);
+
+  Serial.print("📉 추정 기울기: ");
+  Serial.print(slope_estimate, 4);
+  Serial.print(" g/s, 남은 무게: ");
+  Serial.print(current_weight, 2);
+  Serial.print(" g, 예상 시간: ");
+  Serial.print(remaining_sec, 1);
+  Serial.println(" 초");
+}
+
+// ===== 초기 설정 =====
+void setup() {
+  Serial.begin(115200);
+  scale.set_scale();
+  scale.tare();
+  Serial.println("ESP32 실시간 수액 예측 시스템 준비 완료");
+  Serial.println("100ms마다 측정 + EMA + 선형 회귀로 잔여 시간 예측 시작");
+  Serial.println("📦 's' 키를 누르면 측정 중단\n");
+
+  ema_previous = 0;
+}
+
+// ===== 메인 루프 =====
 void loop() {
-  scale.set_scale(calibration_factor); // 보정 계수 적용
-
-  float raw_value = scale.get_units(); // 원래 측정된 값
-  float corrected_weight = (raw_value * slope) + intercept; // 변환된 무게(g)
-  unsigned long current_time = millis();
-
-  // 첫 번째 무게 값 저장 (500ms 구간 시작 시점)
-  if (weight_count == 0) {
-    first_weight_in_window = corrected_weight;
+  // 시리얼 키 입력 확인
+  if (Serial.available()) {
+    char c = Serial.read();
+    if (c == 's' || c == 'S') {
+      is_running = false;
+      Serial.println("🛑 측정 중단됨");
+    }
   }
 
-  // 무게 값 누적 (500ms 평균 계산용)
-  weight_sum += corrected_weight;
-  weight_count++;
+  if (!is_running) return;
 
-  // 500ms마다 flow speed 및 예측 시간 업데이트
-  if (current_time - last_update_time >= update_interval) {
-    float avg_weight = weight_sum / weight_count; // 평균 무게 계산
+  // 측정
+  scale.set_scale(calibration_factor);
+  float raw = scale.get_units();
+  float corrected = (raw * slope) + intercept;
 
-    // Flow speed 계산 (500ms 동안의 무게 변화량 기반)
-    float weight_diff = avg_weight - first_weight_in_window;
-    infusion_rate = weight_diff / (update_interval / 1000.0); // g/s 변환
+  // EMA 적용
+  float ema = (data_index == 0) ? corrected : alpha * corrected + (1 - alpha) * ema_previous;
+  ema_previous = ema;
 
-    // 예측 시간 계산
-    float remaining_time = 0;
-    if (infusion_rate < 0) { // 음수일 때만 남은 시간 계산
-      float weight_to_target = avg_weight - target_weight; // 목표까지 남은 무게
-      if (weight_to_target > 0) {
-        remaining_time = weight_to_target / -infusion_rate;
-      } else {
-        remaining_time = 0; // 이미 목표 이하라면 0으로 설정
-      }
+  // 데이터 저장 (FIFO 방식)
+  if (data_index < max_data) {
+    raw_data[data_index] = corrected;
+    ema_data[data_index] = ema;
+    data_index++;
+  } else {
+    // 데이터 이동: 가장 오래된 값 삭제, 한 칸씩 앞으로 밀기
+    for (int i = 1; i < max_data; i++) {
+      raw_data[i - 1] = raw_data[i];
+      ema_data[i - 1] = ema_data[i];
     }
-
-    // 시리얼 출력
-    Serial.print("Raw Reading: ");
-    Serial.print(raw_value, 1);
-    Serial.print(" | Corrected Weight: ");
-    Serial.print(corrected_weight, 1);
-    Serial.print(" g | Calibration Factor: ");
-    Serial.print(calibration_factor);
-    Serial.print(" | Flow Speed: ");
-    Serial.print(infusion_rate, 2);
-    Serial.print(" g/s | Estimated Time Remaining: ");
-
-    // 남은 예상 투여 시간 출력
-    if (remaining_time > 0) {
-        int hours = remaining_time / 3600;
-        int minutes = ((int)remaining_time % 3600) / 60;
-        int seconds = (int)remaining_time % 60;
-        Serial.printf("%02d:%02d:%02d\n", hours, minutes, seconds); // 개행 포함
-    } else {
-        Serial.println("Completed or Calculating..."); // 개행 포함
-    }
-
-    // 누적 데이터 초기화
-    weight_sum = 0;
-    weight_count = 0;
-    last_update_time = current_time;
+    raw_data[max_data - 1] = corrected;
+    ema_data[max_data - 1] = ema;
   }
 
-  delay(10); // 10ms마다 업데이트
+  // 예측 수행
+  predict_remaining_time();
+
+  delay(delay_interval);
 }
