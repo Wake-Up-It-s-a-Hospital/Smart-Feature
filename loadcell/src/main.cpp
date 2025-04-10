@@ -11,6 +11,8 @@
 #include <HX711.h>
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
+#include <addons/TokenHelper.h>
+#include <addons/RTDBHelper.h>
 #include <math.h>
 
 // Function prototypes
@@ -164,6 +166,18 @@ void connectToWiFi() {
 void setupFirebase() {
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;
+  
+  // 토큰 상태 콜백 설정
+  config.token_status_callback = tokenStatusCallback;
+
+  // 익명 인증 시도
+  bool signupOK = false;
+  if (Firebase.signUp(&config, &auth, "", "")) {
+    Serial.println("✅ 익명 인증 성공");
+    signupOK = true;
+  } else {
+    Serial.printf("❌ 익명 인증 실패: %s\n", config.signer.signupError.message.c_str());
+  }
 
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
@@ -179,7 +193,7 @@ void setupFirebase() {
     Serial.println("\n✅ Firebase 초기화 성공!");
   } else {
     Serial.println("\n❌ Firebase 초기화 실패");
-    printFirebaseDebugInfo();  // 🔍 상세 정보 출력
+    printFirebaseDebugInfo();
   }
 }
 
@@ -195,6 +209,8 @@ void setup() {
   Serial.println("ESP32 실시간 수액 예측 시스템 준비 완료");
   Serial.println("100ms마다 측정 + EMA + 선형 회귀로 잔여 시간 예측 시작");
   Serial.println("📦 's' 키를 누르면 측정 중단\n");
+  Serial.print("DB URL: ");
+  Serial.println(DATABASE_URL);
 
   ema_previous = 0;
 }
