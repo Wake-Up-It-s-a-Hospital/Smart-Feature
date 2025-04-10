@@ -27,12 +27,14 @@ float ema_previous = 0;
 
 // 측정 설정
 const int delay_interval = 100;         // 100ms 간격
-const int max_data = 300;               // 최대 데이터 수 (예: 30초 동안 100ms마다)
-const int regression_window = 30;       // 회귀에 사용할 최근 데이터 수 (3초 분량)
+const int max_data = 300;               // 최대 저장 데이터 수
+const int regression_window = 30;       // 선형회귀에 사용할 데이터 수
 
 float raw_data[max_data];               // 원본 측정값
 float ema_data[max_data];               // EMA 필터 적용값
-int data_index = 0;                     // 현재까지 수집된 데이터 수
+int data_index = 0;                     // 현재 데이터 수
+
+bool is_running = true;
 
 // ===== 선형 회귀 함수 =====
 float compute_slope(float* y_values, int start_idx, int count, float interval_sec) {
@@ -59,8 +61,8 @@ void predict_remaining_time() {
     return;
   }
 
-  int use_count = min(data_index, regression_window);
-  int start_idx = data_index - use_count;
+  int use_count = data_index;
+  int start_idx = 0;
 
   float slope_estimate = compute_slope(ema_data, start_idx, use_count, delay_interval / 1000.0);
 
@@ -70,7 +72,7 @@ void predict_remaining_time() {
   }
 
   if (abs(slope_estimate) < 0.001) {
-    Serial.println("⚠️ 변화량이 너무 작아 예측 정확도 낮음");
+    Serial.println("⚠️ 변화량 너무 작아 예측 정확도 낮음");
     return;
   }
 
@@ -82,8 +84,8 @@ void predict_remaining_time() {
   Serial.print(" g/s, 남은 무게: ");
   Serial.print(current_weight, 2);
   Serial.print(" g, 예상 시간: ");
-  Serial.print(remaining_sec / 60.0, 2);
-  Serial.println(" 분");
+  Serial.print(remaining_sec, 1);
+  Serial.println(" 초");
 }
 
 // ===== 초기 설정 =====
@@ -92,33 +94,50 @@ void setup() {
   scale.set_scale();
   scale.tare();
   Serial.println("ESP32 실시간 수액 예측 시스템 준비 완료");
-  Serial.println("100ms마다 측정 + EMA + 선형 회귀로 남은 시간 예측 시작\n");
+  Serial.println("100ms마다 측정 + EMA + 선형 회귀로 잔여 시간 예측 시작");
+  Serial.println("📦 's' 키를 누르면 측정 중단\n");
 
   ema_previous = 0;
 }
 
 // ===== 메인 루프 =====
 void loop() {
-  if (data_index >= max_data) {
-    Serial.println("💾 최대 데이터 수 도달. 측정 중단");
-    while (true);  // 무한 대기 (또는 원하시면 자동 리셋 가능)
+  // 시리얼 키 입력 확인
+  if (Serial.available()) {
+    char c = Serial.read();
+    if (c == 's' || c == 'S') {
+      is_running = false;
+      Serial.println("🛑 측정 중단됨");
+    }
   }
+
+  if (!is_running) return;
 
   // 측정
   scale.set_scale(calibration_factor);
   float raw = scale.get_units();
   float corrected = (raw * slope) + intercept;
 
-  // EMA 필터 적용
+  // EMA 적용
   float ema = (data_index == 0) ? corrected : alpha * corrected + (1 - alpha) * ema_previous;
   ema_previous = ema;
 
-  // 저장
-  raw_data[data_index] = corrected;
-  ema_data[data_index] = ema;
-  data_index++;
+  // 데이터 저장 (FIFO 방식)
+  if (data_index < max_data) {
+    raw_data[data_index] = corrected;
+    ema_data[data_index] = ema;
+    data_index++;
+  } else {
+    // 데이터 이동: 가장 오래된 값 삭제, 한 칸씩 앞으로 밀기
+    for (int i = 1; i < max_data; i++) {
+      raw_data[i - 1] = raw_data[i];
+      ema_data[i - 1] = ema_data[i];
+    }
+    raw_data[max_data - 1] = corrected;
+    ema_data[max_data - 1] = ema;
+  }
 
-  // 예측 출력
+  // 예측 수행
   predict_remaining_time();
 
   delay(delay_interval);
