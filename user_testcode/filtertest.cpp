@@ -6,39 +6,100 @@
 
 HX711 scale(DOUT, CLK);
 
-// 보정 관련 변수
 float calibration_factor = -1500;
 float slope = -6.80;
 float intercept = 0;
 
-// 실험 세팅
-const int total_duration = 30 * 1000;       // 30초 측정
-const int delay_interval = 100;             // 100ms 간격
+const int total_duration = 30 * 1000;
+const int delay_interval = 500;
 const int sample_count = total_duration / delay_interval;
 
 float weights[sample_count];
 bool experiment_ready = true;
 
-// 최적화 결과 저장용 변수
-float best_alpha = 0;
-float best_score = -1;
+// ===== 필터 함수들 =====
+float ema_filter(int index, float alpha, float* data) {
+  static float prev = 0;
+  if (index == 0) prev = data[0];
+  float result = alpha * data[index] + (1 - alpha) * prev;
+  prev = result;
+  return result;
+}
 
-// ===== 점수 계산 함수 =====
-float compute_score(float* data) {
-  float squared_sum = 0, stddev = 0;
-  float max_val = data[0], min_val = data[0];
+float median_filter(int index, float* data) {
+  int start = max(0, index - 1);
+  int end = min(sample_count - 1, index + 1);
+  float temp[3];
+  int j = 0;
+  for (int i = start; i <= end; i++) {
+    temp[j++] = data[i];
+  }
+  for (int i = 0; i < j - 1; i++) {
+    for (int k = i + 1; k < j; k++) {
+      if (temp[i] > temp[k]) {
+        float t = temp[i]; temp[i] = temp[k]; temp[k] = t;
+      }
+    }
+  }
+  return temp[j / 2];
+}
 
+float delta_filter(int index, float* data) {
+  static float prev = 0;
+  if (index == 0) prev = data[0];
+  float delta = data[index] - prev;
+  if (abs(delta) < 0.05) return prev;
+  prev = data[index];
+  return data[index];
+}
+
+float kalman_filter(int index, float* data) {
+  static float x = 0;
+  static float P = 1;
+  static float last_measurement = 0;
+  if (index == 0) {
+    x = data[0];
+    last_measurement = data[0];
+  }
+
+  float measurement = data[index];
+  float measurement_diff = abs(measurement - last_measurement);
+  last_measurement = measurement;
+
+  float Q_kalman = 0.001 + 0.05 * measurement_diff;
+  float R_kalman = 0.01 + 0.1 * measurement_diff;
+
+  P = P + Q_kalman;
+  float K = P / (P + R_kalman);
+  x = x + K * (measurement - x);
+  P = (1 - K) * P;
+
+  return x;
+}
+
+// ===== 통계 출력 함수 =====
+void print_statistics(float* data, const char* label) {
+  float squared_sum = 0;
+  float max_val = data[0];
+  float min_val = data[0];
+
+  // RMS 계산용 합, 최댓값/최솟값 찾기
   for (int i = 0; i < sample_count; i++) {
     squared_sum += data[i] * data[i];
     if (data[i] > max_val) max_val = data[i];
     if (data[i] < min_val) min_val = data[i];
   }
 
-  float rms = sqrt(squared_sum / sample_count);
+  float rms_mean = sqrt(squared_sum / sample_count);
+
+  // 표준편차 계산
+  float stddev = 0;
   for (int i = 0; i < sample_count; i++) {
-    stddev += pow(data[i] - rms, 2);
+    stddev += pow(data[i] - rms_mean, 2);
   }
   stddev = sqrt(stddev / sample_count);
+
+  // 변화폭
   float peak = max_val - min_val;
 
   // MAD (Mean Absolute Difference)
@@ -92,7 +153,7 @@ float compute_score(float* data) {
   Serial.println(sample_count);
 }
 
-// ===== 실험 실행 함수 =====
+// ===== 실험 함수 =====
 void run_experiment() {
   Serial.println("\n센서 안정화 중...");
   delay(5000);
@@ -118,28 +179,29 @@ void run_experiment() {
     delay(delay_interval);
   }
 
-  find_best_alpha_dynamic(weights);
+  float ema[sample_count];
+  float median[sample_count];
+  float delta[sample_count];
+  float kalman[sample_count];
 
-  // (선택 사항) 최적 α로 EMA 적용해보기
-  Serial.println("\n최적 EMA 필터 결과 (일부 출력):");
-  float filtered[sample_count];
-  filtered[0] = weights[0];
-  for (int i = 1; i < sample_count; i++) {
-    filtered[i] = best_alpha * weights[i] + (1 - best_alpha) * filtered[i - 1];
+  for (int i = 0; i < sample_count; i++) {
+    ema[i] = ema_filter(i, 0.2, weights);
+    median[i] = median_filter(i, weights);
+    delta[i] = delta_filter(i, weights);
+    kalman[i] = kalman_filter(i, weights);
   }
 
-  for (int i = 0; i < 10; i++) { // 처음 10개만 출력
-    Serial.print("Filtered[");
-    Serial.print(i);
-    Serial.print("] = ");
-    Serial.println(filtered[i], 4);
-  }
+  print_statistics(weights, "바닐라");
+  print_statistics(ema, "EMA");
+  print_statistics(median, "Median Filter");
+  print_statistics(delta, "변화량 조정");
+  print_statistics(kalman, "칼만 필터");
 
   Serial.println("\n아무 키나 입력하면 실험을 다시 시작합니다.");
   experiment_ready = true;
 }
 
-// ===== 초기 설정 =====
+// ===== 기본 설정 =====
 void setup() {
   Serial.begin(115200);
   scale.set_scale();
@@ -147,10 +209,9 @@ void setup() {
   Serial.println("ESP32 HX711 Stability Test Ready. 아무 키나 누르면 시작합니다.");
 }
 
-// ===== 루프 =====
 void loop() {
   if (experiment_ready && Serial.available()) {
-    Serial.read();  // 입력 소모
+    Serial.read(); // 입력 소비
     experiment_ready = false;
     run_experiment();
   }

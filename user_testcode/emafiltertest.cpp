@@ -23,7 +23,7 @@ bool experiment_ready = true;
 float best_alpha = 0;
 float best_score = -1;
 
-// ===== 점수 계산 함수 =====
+// ===== 점수 계산 함수 (단일 수치화용) =====
 float compute_score(float* data) {
   float squared_sum = 0, stddev = 0;
   float max_val = data[0], min_val = data[0];
@@ -41,23 +41,48 @@ float compute_score(float* data) {
   stddev = sqrt(stddev / sample_count);
   float peak = max_val - min_val;
 
-  // MAD (Mean Absolute Difference)
+  float score_rms = 60.0 / (1.0 + rms);
+  float score_std = 25.0 / (1.0 + stddev);
+  float score_peak = 15.0 / (1.0 + peak);
+  return score_rms + score_std + score_peak;
+}
+
+// ===== 6가지 지표를 개별 출력하는 함수 =====
+void print_metrics(float* data, float alpha_value) {
+  float squared_sum = 0;
+  float max_val = data[0];
+  float min_val = data[0];
+
+  for (int i = 0; i < sample_count; i++) {
+    squared_sum += data[i] * data[i];
+    if (data[i] > max_val) max_val = data[i];
+    if (data[i] < min_val) min_val = data[i];
+  }
+
+  float rms_mean = sqrt(squared_sum / sample_count);
+
+  float stddev = 0;
+  for (int i = 0; i < sample_count; i++) {
+    stddev += pow(data[i] - rms_mean, 2);
+  }
+  stddev = sqrt(stddev / sample_count);
+
+  float peak = max_val - min_val;
+
   float mad = 0;
   for (int i = 1; i < sample_count; i++) {
     mad += abs(data[i] - data[i - 1]);
   }
   mad /= (sample_count - 1);
 
-  // 지터 (샘플 간 변화의 표준편차)
   float delta_sum = 0;
   for (int i = 1; i < sample_count; i++) {
     float diff = data[i] - data[i - 1];
-    delta_sum += pow(diff - mad, 2);  // mad를 평균으로 사용
+    delta_sum += pow(diff - mad, 2);
   }
   float jitter = sqrt(delta_sum / (sample_count - 1));
 
-  // 최소 변화 구간 길이 (안정 구간)
-  const float stability_threshold = 0.05;  // 변화량이 이 값보다 작으면 안정적이라 판단
+  const float stability_threshold = 0.05;
   int max_stable_count = 0;
   int current_stable_count = 0;
   for (int i = 1; i < sample_count; i++) {
@@ -69,27 +94,56 @@ float compute_score(float* data) {
       current_stable_count = 0;
     }
   }
-  float stable_duration_sec = (max_stable_count + 1) * (delay_interval / 1000.0); // 구간 길이를 초로 환산
+  float stable_duration_sec = (max_stable_count + 1) * (delay_interval / 1000.0);
 
-  // ==== 출력 ====
-  Serial.print("\n<실험 결과: ");
-  Serial.print(label);
-  Serial.println(">");
+  Serial.print("\n<α = ");
+  Serial.print(alpha_value, 2);
+  Serial.println("의 EMA 필터 성능 지표>");
+
   Serial.print("RMS 평균: ");
   Serial.println(rms_mean, 3);
   Serial.print("표준편차: ");
-  Serial.println(stddev, 2);
+  Serial.println(stddev, 3);
   Serial.print("변화폭: ");
-  Serial.println(peak, 2);
-  Serial.print("MAD(평균 변화량): ");
+  Serial.println(peak, 3);
+  Serial.print("MAD (평균 변화량): ");
   Serial.println(mad, 4);
-  Serial.print("지터(샘플 간 변동성): ");
+  Serial.print("지터 (샘플 간 변화 표준편차): ");
   Serial.println(jitter, 4);
   Serial.print("최대 안정 구간 길이: ");
   Serial.print(stable_duration_sec, 2);
   Serial.println("초");
-  Serial.print("총 실험 시간: 30초\n총 샘플 수: ");
-  Serial.println(sample_count);
+}
+
+// ===== EMA 알파 최적화 함수 (지표 출력 포함) =====
+void find_best_alpha_dynamic(float* weights) {
+  Serial.println("\n[동적 EMA α 최적화 시작]");
+
+  best_alpha = 0;
+  best_score = -1;
+
+  float ema[sample_count];
+
+  for (float alpha = 0.05; alpha <= 0.5; alpha += 0.01) {
+    ema[0] = weights[0];
+    for (int i = 1; i < sample_count; i++) {
+      ema[i] = alpha * weights[i] + (1 - alpha) * ema[i - 1];
+    }
+
+    float score = compute_score(ema);
+    if (score > best_score) {
+      best_score = score;
+      best_alpha = alpha;
+    }
+
+    print_metrics(ema, alpha);
+  }
+
+  Serial.print("\n✅ 최적 α = ");
+  Serial.print(best_alpha, 2);
+  Serial.print(" (예상 윈도우 길이 ≈ ");
+  Serial.print((2.0 / best_alpha) - 1, 1);
+  Serial.println(" 샘플)");
 }
 
 // ===== 실험 실행 함수 =====
@@ -120,7 +174,7 @@ void run_experiment() {
 
   find_best_alpha_dynamic(weights);
 
-  // (선택 사항) 최적 α로 EMA 적용해보기
+  // 최적 EMA 적용 시범 출력
   Serial.println("\n최적 EMA 필터 결과 (일부 출력):");
   float filtered[sample_count];
   filtered[0] = weights[0];
@@ -128,7 +182,7 @@ void run_experiment() {
     filtered[i] = best_alpha * weights[i] + (1 - best_alpha) * filtered[i - 1];
   }
 
-  for (int i = 0; i < 10; i++) { // 처음 10개만 출력
+  for (int i = 0; i < 10; i++) {
     Serial.print("Filtered[");
     Serial.print(i);
     Serial.print("] = ");
@@ -147,10 +201,10 @@ void setup() {
   Serial.println("ESP32 HX711 Stability Test Ready. 아무 키나 누르면 시작합니다.");
 }
 
-// ===== 루프 =====
+// ===== 메인 루프 =====
 void loop() {
   if (experiment_ready && Serial.available()) {
-    Serial.read();  // 입력 소모
+    Serial.read();
     experiment_ready = false;
     run_experiment();
   }
