@@ -9,7 +9,24 @@
 // 100ms 간격으로 루프가 계속 돌아가면서 잔여 시간 출력
 
 #include <HX711.h>
+#include <WiFi.h>
+#include <FirebaseESP32.h>
 #include <math.h>
+
+// Function prototypes
+void upload_to_firebase(float weight, float remaining_time);
+void predict_remaining_time();
+void connectToWiFi();
+void setupFirebase();
+
+#define WIFI_SSID "MERCUSYS_FF46"
+#define WIFI_PASSWORD "Yoonsung123"
+#define FIREBASE_PROJECT_ID "smart-iv-pole-f98ce"
+#define API_KEY "AIzaSyA-CdsRfm7pIXDNQClaco2KWnapFZfOaGs"
+#define DATABASE_URL "https://smart-iv-pole-f98ce-default-rtdb.asia-southeast1.firebasedatabase.app/"
+FirebaseAuth auth;
+FirebaseConfig config;
+FirebaseData fbdo;
 
 #define DOUT  4
 #define CLK   5
@@ -54,6 +71,29 @@ float compute_slope(float* y_values, int start_idx, int count, float interval_se
   return numerator / denominator;
 }
 
+void upload_to_firebase(float weight, float remaining_time) {
+  if (Firebase.ready()) {
+    String path_weight = "/infusion/current_weight";
+    String path_time = "/infusion/remaining_sec";
+
+    if (Firebase.RTDB.setFloat(&fbdo, path_weight, weight)) {
+      Serial.println("✅ 수액 무게 업로드 성공");
+    } else {
+      Serial.print("❌ 수액 무게 업로드 실패: ");
+      Serial.println(fbdo.errorReason());
+    }
+
+    if (Firebase.RTDB.setFloat(&fbdo, path_time, remaining_time)) {
+      Serial.println("✅ 남은 시간 업로드 성공");
+    } else {
+      Serial.print("❌ 남은 시간 업로드 실패: ");
+      Serial.println(fbdo.errorReason());
+    }
+  } else {
+    Serial.println("⚠️ Firebase가 준비되지 않음");
+  }
+}
+
 // ===== 투여 시간 예측 루틴 =====
 void predict_remaining_time() {
   if (data_index < 2) {
@@ -86,11 +126,36 @@ void predict_remaining_time() {
   Serial.print(" g, 예상 시간: ");
   Serial.print(remaining_sec, 1);
   Serial.println(" 초");
+  upload_to_firebase(current_weight, remaining_sec);
+}
+
+void connectToWiFi() {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Wi-Fi 연결 중");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\n✅ Wi-Fi 연결 성공");
+}
+
+void setupFirebase() {
+  config.api_key = API_KEY;
+  config.database_url = DATABASE_URL;
+  auth.user.email = "";
+  auth.user.password = "";
+
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
 }
 
 // ===== 초기 설정 =====
 void setup() {
   Serial.begin(115200);
+
+  connectToWiFi();
+  setupFirebase();
+  
   scale.set_scale();
   scale.tare();
   Serial.println("ESP32 실시간 수액 예측 시스템 준비 완료");
