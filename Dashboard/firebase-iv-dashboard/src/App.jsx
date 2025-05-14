@@ -1,63 +1,66 @@
-// import React, { useEffect, useState } from "react";
-// import { db } from "./firebase";
-// import { ref, onValue } from "firebase/database";
-// import ChartComponent from "./components/ChartComponent";
-
-// function App() {
-//   const [weight, setWeight] = useState(0);
-//   const [remainingSec, setRemainingSec] = useState(0);
-
-//   const [labels, setLabels] = useState([]);
-//   const [graphData, setGraphData] = useState([]);
-
-//   useEffect(() => {
-//     const weightRef = ref(db, "infusion/current_weight");
-//     const timeRef = ref(db, "infusion/remaining_sec");
-
-//     const interval = setInterval(() => {
-//       onValue(weightRef, (snapshot) => {
-//         if (snapshot.exists()) {
-//           const val = snapshot.val();
-//           const now = new Date().toLocaleTimeString();
-
-//           setWeight(val);
-
-//           setLabels((prev) => [...prev.slice(-99), now]); // 최대 100개
-//           setGraphData((prev) => [...prev.slice(-99), val]);
-//         }
-//       }, { onlyOnce: true }); // 실시간 루프 방지
-//     }, 1000); // 1초 간격
-
-//     onValue(timeRef, (snapshot) => {
-//       if (snapshot.exists()) {
-//         setRemainingSec(snapshot.val());
-//       }
-//     });
-
-//     return () => clearInterval(interval);
-//   }, []);
-
-//   return (
-//     <div style={{ padding: "2rem", fontFamily: "sans-serif", maxWidth: 800, margin: "auto" }}>
-//       <h1>💧 실시간 수액 상태 모니터링</h1>
-//       <p>📦 현재 수액 무게: <strong>{weight.toFixed(2)} g</strong></p>
-//       <p>⏳ 남은 예상 시간: <strong>{remainingSec.toFixed(1)} 초</strong></p>
-
-//       <div style={{ marginTop: "2rem" }}>
-//         <ChartComponent labels={labels} data={graphData} />
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default App;
-
-
-import React from "react";
-import { Bell, BatteryCharging, Wifi, UserPlus, User } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Bell, BatteryCharging, Wifi, UserPlus, User, Plus, Minus } from "lucide-react";
+import { db } from "./firebase";
+import { ref, onValue } from "firebase/database";
+import ChartComponent from "./components/ChartComponent";
 import './App.css';
 
 export default function Dashboard() {
+  const [weight, setWeight] = useState(0);
+  const [remainingSec, setRemainingSec] = useState(0);
+  const [labels, setLabels] = useState([]);
+  const [graphData, setGraphData] = useState([]);
+  const [cards, setCards] = useState([
+    { id: 1, title: "My Project 1", value: 24, unit: "m³" }
+  ]);
+  const [selectedProjectId, setSelectedProjectId] = useState(1);
+
+  useEffect(() => {
+    const weightRef = ref(db, "infusion/current_weight");
+    const timeRef = ref(db, "infusion/remaining_sec");
+
+    const interval = setInterval(() => {
+      onValue(weightRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const val = snapshot.val();
+          const now = new Date().toLocaleTimeString();
+
+          setWeight(val);
+          setLabels((prev) => [...prev.slice(-19), now]); // 최대 20개
+          setGraphData((prev) => [...prev.slice(-19), val]); // 최대 20개
+        }
+      }, { onlyOnce: true }); // 실시간 루프 방지
+    }, 1000); // 1초 간격
+
+    onValue(timeRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setRemainingSec(snapshot.val());
+      }
+    });
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const addNewCard = () => {
+    const newId = cards.length + 1;
+    setCards([...cards, {
+      id: newId,
+      title: `Project ${newId}`,
+      value: Math.floor(Math.random() * 50),
+      unit: "m³"
+    }]);
+    setSelectedProjectId(newId); // 새 프로젝트 추가 시 자동 선택
+  };
+
+  const deleteCard = (id) => {
+    const newCards = cards.filter(card => card.id !== id);
+    setCards(newCards);
+    // 삭제된 카드가 선택된 카드였다면, 첫 번째 카드를 선택
+    if (id === selectedProjectId && newCards.length > 0) {
+      setSelectedProjectId(newCards[0].id);
+    }
+  };
+
   return (
     <div className="dashboard">
       {/* Header */}
@@ -99,41 +102,33 @@ export default function Dashboard() {
         <div className="content">
           {/* Top Cards */}
           <div className="card-grid">
-            <div className="card primary">
-              <div className="card-content">
-                <div className="card-title">My Project 1</div>
-                <div className="card-value">24</div>
-                <div className="card-unit">m³</div>
+            {cards.map((card) => (
+              <div 
+                key={card.id} 
+                className={`card ${card.id === selectedProjectId ? 'primary' : 'secondary'}`}
+                onClick={() => setSelectedProjectId(card.id)}
+              >
+                {cards.length > 1 && (
+                  <button 
+                    className="delete-button"
+                    onClick={(e) => {
+                      e.stopPropagation(); // 카드 클릭 이벤트 전파 방지
+                      deleteCard(card.id);
+                    }}
+                  >
+                    <Minus size={16} />
+                  </button>
+                )}
+                <div className="card-content">
+                  <div className="card-title">{card.title}</div>
+                  <div className="card-value">{card.value}</div>
+                  <div className="card-unit">{card.unit}</div>
+                </div>
               </div>
-            </div>
-            <div className="card">
-              <div className="card-content">
-                <div className="card-title">temp proj 4</div>
-                <div className="card-value">3</div>
-                <div className="card-unit">m³</div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-content">
-                <div className="card-title">temp proj</div>
-                <div className="card-value">10</div>
-                <div className="card-unit">m³</div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-content">
-                <div className="card-title">wefwd</div>
-                <div className="card-value">1</div>
-                <div className="card-unit">m³</div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-content">
-                <div className="card-title">yje</div>
-                <div className="card-value">43</div>
-                <div className="card-unit">m³</div>
-              </div>
-            </div>
+            ))}
+            <button className="add-card-button" onClick={addNewCard}>
+              <Plus size={24} />
+            </button>
           </div>
 
           {/* Chart & Robot Info */}
@@ -141,36 +136,38 @@ export default function Dashboard() {
             <div className="chart-card">
               <div className="card-content">
                 <div className="card-title">탐사 면적</div>
-                <div className="chart-placeholder"></div>
-              </div>
-            </div>
-
-            <div className="info-cards">
-              <div className="card">
-                <div className="card-content">
-                  <div className="card-title">Robots</div>
-                  <ul className="robot-list">
-                    <li className="robot-item good">Robot 1 <span>65% / 32 Mbps / 17ms</span></li>
-                    <li className="robot-item warning">Robot 2 <span>27% / 15 Mbps / 250ms</span></li>
-                    <li className="robot-item error">Robot 3 <span>13% / 42 Mbps / 2ms</span></li>
-                  </ul>
+                <div className="chart-container">
+                  <ChartComponent labels={labels} data={graphData} />
                 </div>
-              </div>
-              <div className="card">
-                <div className="card-content">
-                  <div className="card-title">Notifications</div>
-                  <div className="notification-list">
-                    <div className="notification warning">⚠️ 로봇의 배터리가 낮습니다.</div>
-                    <div className="notification error">❗ 로봇의 핑이 매우 높습니다.</div>
-                  </div>
+                <div className="weight-info">
+                  <p>📦 현재 수액 무게: <strong>{weight.toFixed(2)} g</strong></p>
+                  <p>⏳ 남은 예상 시간: <strong>{remainingSec.toFixed(1)} 초</strong></p>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Bottom Section */}
-          <div className="bottom-grid">
-            <div className="card">
+            <div className="robots-card card">
+              <div className="card-content">
+                <div className="card-title">Robots</div>
+                <ul className="robot-list">
+                  <li className="robot-item good">Robot 1 <span>65% / 32 Mbps / 17ms</span></li>
+                  <li className="robot-item warning">Robot 2 <span>27% / 15 Mbps / 250ms</span></li>
+                  <li className="robot-item error">Robot 3 <span>13% / 42 Mbps / 2ms</span></li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="notifications-card card">
+              <div className="card-content">
+                <div className="card-title">Notifications</div>
+                <div className="notification-list">
+                  <div className="notification warning">⚠️ 로봇의 배터리가 낮습니다.</div>
+                  <div className="notification error">❗ 로봇의 핑이 매우 높습니다.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="team-card card">
               <div className="card-content">
                 <div className="card-title">Team</div>
                 <div className="team-list">
@@ -181,31 +178,24 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            <div className="card">
-              <div className="card-content">
-                <div className="card-title">Maps</div>
-                <div className="map-placeholder"></div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-content">
-                <div className="card-title">Average Battery</div>
-                <div className="battery-value">43%</div>
-              </div>
-            </div>
-          </div>
 
-          <div className="stats-grid">
-            <div className="card">
-              <div className="card-content">
-                <div className="card-title">Average Connection</div>
-                <div className="connection-value">17 Mbps</div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-content">
-                <div className="card-title">Ping</div>
-                <div className="ping-value">153 ms</div>
+            <div className="status-card card">
+              <div className="card-content status-content">
+                <div className="card-title">Status</div>
+                <div className="status-list">
+                  <div className="status-item">
+                    <span className="status-label">Battery</span>
+                    <span className="status-value">43%</span>
+                  </div>
+                  <div className="status-item">
+                    <span className="status-label">Connection</span>
+                    <span className="status-value">17 Mbps</span>
+                  </div>
+                  <div className="status-item">
+                    <span className="status-label">Ping</span>
+                    <span className="status-value">153 ms</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
