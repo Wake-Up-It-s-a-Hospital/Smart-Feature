@@ -82,7 +82,8 @@ export default function Dashboard() {
       <div className="main-container">
         {/* Sidebar */}
         <div className="sidebar">
-          <div className="sidebar-title">Find For You</div>
+          <div className="sidebar-title">Smart IV Pole</div>
+          <div className="section-title">MENU</div>
           <div className="menu">
             <div className="menu-item active">Overview</div>
             <div className="menu-item">Robots</div>
@@ -119,8 +120,8 @@ export default function Dashboard() {
                     <Minus size={16} />
                   </button>
                 )}
+                <div className="card-title">{card.title}</div>
                 <div className="card-content">
-                  <div className="card-title">{card.title}</div>
                   <div className="card-value">{card.value}</div>
                   <div className="card-unit">{card.unit}</div>
                 </div>
@@ -133,9 +134,9 @@ export default function Dashboard() {
 
           {/* Chart & Robot Info */}
           <div className="info-grid">
-            <div className="chart-card">
+            <div className="chart-card card">
+              <div className="card-title">수액 무게</div>
               <div className="card-content">
-                <div className="card-title">탐사 면적</div>
                 <div className="chart-container">
                   <ChartComponent labels={labels} data={graphData} />
                 </div>
@@ -147,41 +148,36 @@ export default function Dashboard() {
             </div>
 
             <div className="robots-card card">
+              <div className="card-title">IV Poles</div>
               <div className="card-content">
-                <div className="card-title">Robots</div>
                 <ul className="robot-list">
-                  <li className="robot-item good">Robot 1 <span>65% / 32 Mbps / 17ms</span></li>
-                  <li className="robot-item warning">Robot 2 <span>27% / 15 Mbps / 250ms</span></li>
-                  <li className="robot-item error">Robot 3 <span>13% / 42 Mbps / 2ms</span></li>
+                  <li className="robot-item good">Pole 1 <span>65% / 32 Mbps / 17ms</span></li>
+                  <li className="robot-item warning">Pole 2 <span>27% / 15 Mbps / 250ms</span></li>
+                  <li className="robot-item error">Pole 3 <span>13% / 42 Mbps / 2ms</span></li>
                 </ul>
               </div>
             </div>
 
             <div className="notifications-card card">
+              <div className="card-title">Notifications</div>
               <div className="card-content">
-                <div className="card-title">Notifications</div>
                 <div className="notification-list">
-                  <div className="notification warning">⚠️ 로봇의 배터리가 낮습니다.</div>
-                  <div className="notification error">❗ 로봇의 핑이 매우 높습니다.</div>
+                  <div className="notification warning">⚠️ 폴대의 배터리가 낮습니다.</div>
+                  <div className="notification error">❗ 폴대의 핑이 매우 높습니다.</div>
                 </div>
               </div>
             </div>
 
             <div className="team-card card">
+              <div className="card-title">Time Left</div>
               <div className="card-content">
-                <div className="card-title">Team</div>
-                <div className="team-list">
-                  <div className="team-member"><User className="icon" /> Nekerworld</div>
-                  <div className="team-member"><User className="icon" /> Minecraft</div>
-                  <div className="team-member"><User className="icon" /> Da drüben</div>
-                  <button className="add-member"><UserPlus className="icon" /> Add Member</button>
-                </div>
+                <div className="team-remaining-time"> <strong>{remainingSec.toFixed(1)} 초</strong></div>
               </div>
             </div>
 
             <div className="status-card card">
+              <div className="card-title">Status</div>
               <div className="card-content status-content">
-                <div className="card-title">Status</div>
                 <div className="status-list">
                   <div className="status-item">
                     <span className="status-label">Battery</span>
