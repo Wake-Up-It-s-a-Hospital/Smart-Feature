@@ -1,4 +1,4 @@
-#root {
+/* #root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
@@ -39,4 +39,294 @@
 
 .read-the-docs {
   color: #888;
+} */
+
+
+/* 공통 스타일 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #ffffff;
+}
+
+/* 대시보드 레이아웃 */
+.dashboard {
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+/* 헤더 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.search-input {
+  width: 50%;
+  padding: 0.5rem;
+  border: 1px solid #e2e2e2;
+  border-radius: 0.25rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: #047857;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.username {
+  font-size: 0.875rem;
+}
+
+/* 메인 컨테이너 */
+.main-container {
+  display: flex;
+  gap: 1.5rem;
+}
+
+/* 사이드바 */
+.sidebar {
+  width: 12rem;
+  padding-right: 1.5rem;
+  border-right: 1px solid #e2e2e2;
+  color: #4b5563;
+}
+
+.sidebar-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.menu-item {
+  cursor: pointer;
+}
+
+.menu-item.active {
+  color: #047857;
+  font-weight: 600;
+}
+
+.sidebar-footer {
+  margin-top: 2.5rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.section-title {
+  margin-bottom: 0.5rem;
+}
+
+/* 메인 콘텐츠 */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* 카드 그리드 */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+}
+
+.card {
+  background-color: white;
+  border: 1px solid #e2e2e2;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.card.primary {
+  background-color: #047857;
+  color: white;
+}
+
+.card-content {
+  padding: 1rem;
+  text-align: center;
+}
+
+.card-title {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-value {
+  font-size: 1.875rem;
+  font-weight: bold;
+}
+
+.card-unit {
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+/* 정보 그리드 */
+.info-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+
+.chart-card {
+  grid-column: span 2;
+}
+
+.chart-placeholder {
+  height: 8rem;
+  background-color: #f3f4f6;
+  border-radius: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.info-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* 로봇 리스트 */
+.robot-list {
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.robot-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.robot-item.good {
+  color: #047857;
+}
+
+.robot-item.warning {
+  color: #d97706;
+}
+
+.robot-item.error {
+  color: #dc2626;
+}
+
+/* 알림 */
+.notification-list {
+  font-size: 0.875rem;
+}
+
+.notification {
+  margin-bottom: 0.25rem;
+}
+
+.notification.warning {
+  color: #d97706;
+}
+
+.notification.error {
+  color: #dc2626;
+}
+
+/* 하단 그리드 */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+/* 팀 리스트 */
+.team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.team-member {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.add-member {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #047857;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* 맵 플레이스홀더 */
+.map-placeholder {
+  height: 8rem;
+  background-color: #f3f4f6;
+  border-radius: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+/* 배터리 값 */
+.battery-value {
+  font-size: 2.25rem;
+  color: #047857;
+  text-align: center;
+}
+
+/* 통계 그리드 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.connection-value {
+  font-size: 1.875rem;
+  text-align: center;
+}
+
+.ping-value {
+  font-size: 1.875rem;
+  color: #dc2626;
+  text-align: center;
 }
