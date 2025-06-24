@@ -1,0 +1,5 @@
+streamlit
+websocket-client
+websockets
+boto3
+streamlit-autorefresh 
