@@ -81,9 +81,3 @@ else:
     # 데이터가 없으면 안내 문구 표시
     st.info("수신 대기 중... 아직 데이터가 없습니다.")
     st.write("`streamlit run main.py`를 실행한 터미널에서 `[WebSocket] 연결 성공` 메시지가 보이는지 확인하세요.")
-
-
-# # --- 자동 새로고침 ---
-# # 1초마다 페이지를 다시 실행하여 실시간처럼 보이게 만듬
-# time.sleep(1)
-# st.experimental_rerun()
