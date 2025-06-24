@@ -89,6 +89,12 @@ Dashboard는 리액트 기반 프로젝트로, 아래와 같은 과정을 거쳐
 3. npm install (프로젝트에 쓰인 라이브러리 다운로드 및 의존성 파일 다운)
 4. npm run dev
 
+1. 이 레포지토리 클론
+2. `pip install -r requirements.txt`
+3. streamlit_websocket.py 실행
+4. dynamodb_to_websocket.py 실행
+5. `streamlit run main.py`
+
 ---
 
 ## 📌 TODO (예정 기능)
