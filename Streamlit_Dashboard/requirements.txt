@@ -3,3 +3,4 @@ websocket-client
 websockets
 boto3
 streamlit-autorefresh 
+plotly
