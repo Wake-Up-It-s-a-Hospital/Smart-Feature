@@ -5,6 +5,7 @@ import websocket
 import time
 import json
 from streamlit_autorefresh import st_autorefresh
+import plotly.graph_objs as go
 
 # 1초마다 자동 새로고침
 st_autorefresh(interval=1000, key="datarefresh")
@@ -40,6 +41,9 @@ if "queue" not in st.session_state:
 if "loadcell_data" not in st.session_state:
     st.session_state.loadcell_data = {}
 
+if "loadcell_history" not in st.session_state:
+    st.session_state.loadcell_history = {}
+
 # 스레드는 단 한 번만 시작되어야 합니다.
 if "ws_thread_started" not in st.session_state:
     st.session_state.ws_thread_started = True
@@ -60,6 +64,16 @@ while not q.empty():
                 "current_weight": data.get("current_weight", "N/A"),
                 "remaining_sec": data.get("remaining_sec", "N/A")
             }
+            # 무게 히스토리 저장 (최대 30개)
+            if loadcel not in st.session_state.loadcell_history:
+                st.session_state.loadcell_history[loadcel] = []
+            try:
+                weight = float(data.get("current_weight", 0))
+            except:
+                weight = 0
+            st.session_state.loadcell_history[loadcel].append(weight)
+            if len(st.session_state.loadcell_history[loadcel]) > 30:
+                st.session_state.loadcell_history[loadcel] = st.session_state.loadcell_history[loadcel][-30:]
     except Exception as e:
         st.error(f"메시지 파싱 오류: {msg} | 오류: {e}")
 
@@ -77,6 +91,13 @@ if st.session_state.loadcell_data:
         col1, col2 = st.columns(2)
         col1.metric(label="현재 무게", value=values['current_weight'])
         col2.metric(label="남은 시간(초)", value=values['remaining_sec'])
+        # plotly 그래프 추가
+        history = st.session_state.loadcell_history.get(loadcel_id, [])
+        if history:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(y=history, mode='lines+markers', name='무게'))
+            fig.update_layout(title="무게 변화 추이 (최근 30개)", xaxis_title="측정 순서", yaxis_title="무게")
+            st.plotly_chart(fig, use_container_width=True)
 else:
     # 데이터가 없으면 안내 문구 표시
     st.info("수신 대기 중... 아직 데이터가 없습니다.")
