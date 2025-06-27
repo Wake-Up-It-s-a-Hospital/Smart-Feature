@@ -50,9 +50,11 @@ def get_shard_iterator(stream_arn):
     """스트림의 첫 번째 샤드에 대한 이터레이터를 가져옵니다."""
     try:
         response = streams_client.describe_stream(StreamArn=stream_arn)
-        # 더 복잡한 애플리케이션에서는 모든 샤드를 처리해야 합니다.
-        # 여기서는 간단하게 첫 번째 샤드만 처리합니다.
-        shard_id = response['StreamDescription']['Shards'][0]['ShardId']
+        shards = response['StreamDescription']['Shards']
+        if not shards:
+            print("Stream에 활성화된 샤드가 없습니다. 테이블에 최근 변경이 있었는지 확인하세요.")
+            return None
+        shard_id = shards[0]['ShardId']
         
         iterator_response = streams_client.get_shard_iterator(
             StreamArn=stream_arn,
