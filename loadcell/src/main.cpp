@@ -25,12 +25,12 @@ void connectToWiFi();
 
 // --- AWS & API Gateway ---
 // AWS 설정 단계에서 생성한 API Gateway 호출 URL을 여기에 입력하세요.
-#define API_GATEWAY_URL "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1"
+#define API_GATEWAY_URL "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1/data"
 
 // --- Pin Definitions ---
 #define DOUT1 34
-#define CLK1  35
-#define DOUT2 25
+#define CLK1  25
+#define DOUT2 35
 #define CLK2  26
 
 // --- HX711 Instances ---
@@ -87,7 +87,7 @@ void uploadToDynamoDB(int loadcell_id, float weight, float remaining_time) {
     http.addHeader("Content-Type", "application/json");
 
     // JSON 페이로드 생성
-    StaticJsonDocument<200> doc;
+    JsonDocument doc;
     doc["loadcel"] = String(loadcell_id);
     doc["current_weight"] = weight;
     doc["remaining_sec"] = remaining_time;
@@ -97,10 +97,12 @@ void uploadToDynamoDB(int loadcell_id, float weight, float remaining_time) {
 
     int httpResponseCode = http.POST(requestBody);
 
-    if (httpResponseCode > 0) {
-      Serial.printf("✅ 로드셀 %d: DynamoDB 업로드 성공! (코드: %d)\n", loadcell_id, httpResponseCode);
+    if (httpResponseCode == 200) {
+      Serial.printf("✅ 로드셀 %d: DynamoDB 업로드 성공!\n", loadcell_id);
     } else {
-      Serial.printf("❌ 로드셀 %d: DynamoDB 업로드 실패, 에러: %s\n", loadcell_id, http.errorToString(httpResponseCode).c_str());
+      String responseBody = http.getString();
+      Serial.printf("❌ 로드셀 %d: DynamoDB 업로드 실패 (HTTP 코드: %d)\n", loadcell_id, httpResponseCode);
+      Serial.printf("   AWS 응답: %s\n", responseBody.c_str());
     }
 
     http.end();
@@ -154,6 +156,7 @@ void process_loadcell_data(
 
     if (abs(slope_estimate) < 0.001) {
         Serial.printf("⚠️ 로드셀 %d: 변화량 작아 예측 불가 (무게만 업로드)\n", loadcell_id);
+        Serial.printf("로드셀 %d의 무게: %.2f g", loadcell_id, current_weight);
         uploadToDynamoDB(loadcell_id, current_weight, -1); // 남은 시간 -1로 전송
         return;
     }
