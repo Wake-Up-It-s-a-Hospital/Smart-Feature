@@ -431,15 +431,20 @@ else:
     for loadcel_id in sorted(loadcell_data.keys()):
         values = loadcell_data[loadcel_id]
         
-        st.write(f"---")
+        st.write("---")
         st.subheader(f"로드셀 #{loadcel_id}")
-        col1, col2 = st.columns(2)
-        col1.metric(label="현재 무게", value=values['current_weight'])
-        col2.metric(label="남은 시간(초)", value=values['remaining_sec'])
-        # plotly 그래프 추가
-        history = loadcell_history.get(loadcel_id, [])
-        if history:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(y=history, mode='lines+markers', name='무게'))
-            fig.update_layout(title="무게 변화 추이 (최근 30개)", xaxis_title="측정 순서", yaxis_title="무게")
-            st.plotly_chart(fig, use_container_width=True)
+
+        # 수액 미연결 상태 체크
+        if values['current_weight'] == 0 and values['remaining_sec'] == -1:
+            st.warning("�� 수액이 연결되지 않았습니다.")
+        else:
+            col1, col2 = st.columns(2)
+            col1.metric(label="현재 무게", value=values['current_weight'])
+            col2.metric(label="남은 시간(초)", value=values['remaining_sec'])
+            # plotly 그래프 추가
+            history = loadcell_history.get(loadcel_id, [])
+            if history:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(y=history, mode='lines+markers', name='무게'))
+                fig.update_layout(title="무게 변화 추이 (최근 30개)", xaxis_title="측정 순서", yaxis_title="무게")
+                st.plotly_chart(fig, use_container_width=True)
