@@ -1,6 +1,7 @@
 streamlit
-websocket-client
 websockets
 boto3
-streamlit-autorefresh 
+streamlit-autorefresh
 plotly
+pandas
+pytz
