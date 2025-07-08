@@ -63,19 +63,26 @@ while not q.empty():
         data = json.loads(msg)
         loadcel = data.get("loadcel")
         if loadcel:
+            # float 캐스팅 시도
+            try:
+                current_weight = float(data.get("current_weight", 0))
+            except:
+                current_weight = 0
+            try:
+                remaining_sec = float(data.get("remaining_sec", -1))
+            except:
+                remaining_sec = -1
             # 데이터를 세션 상태에 저장 (다른 페이지에서 사용)
             st.session_state.loadcell_data[loadcel] = {
-                "current_weight": data.get("current_weight", "N/A"),
-                "remaining_sec": data.get("remaining_sec", "N/A")
+                "current_weight": current_weight,
+                "remaining_sec": remaining_sec
             }
+            # 디버그용 출력
+            print(f"[로드셀 데이터] id: {loadcel}, 무게: {current_weight}, 남은 시간: {remaining_sec}")
             # 무게 히스토리 저장 (최대 30개)
             if loadcel not in st.session_state.loadcell_history:
                 st.session_state.loadcell_history[loadcel] = []
-            try:
-                weight = float(data.get("current_weight", 0))
-            except:
-                weight = 0
-            st.session_state.loadcell_history[loadcel].append(weight)
+            st.session_state.loadcell_history[loadcel].append(current_weight)
             if len(st.session_state.loadcell_history[loadcel]) > 30:
                 st.session_state.loadcell_history[loadcel] = st.session_state.loadcell_history[loadcel][-30:]
     except Exception as e:

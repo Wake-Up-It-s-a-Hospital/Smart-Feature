@@ -1,6 +1,9 @@
 import streamlit as st
+import json
 
 st.title("⚙️ 설정")
+
+st.warning("🚧 기능 개발 중 🚧")
 
 # session_state에 설정값 초기화
 if 'alert_threshold_min' not in st.session_state:
@@ -9,6 +12,35 @@ if 'alert_threshold_min' not in st.session_state:
 if 'enable_notifications' not in st.session_state:
     st.session_state['enable_notifications'] = True
 
+# WebSocket에서 받은 메시지 처리 (main.py와 동일하게)
+q = st.session_state.get("queue", None)
+if q is not None:
+    while not q.empty():
+        msg = q.get()
+        try:
+            data = json.loads(msg)
+            loadcel = data.get("loadcel")
+            timestamp = data.get("timestamp")
+            if loadcel:
+                try:
+                    current_weight = float(data.get("current_weight", 0))
+                except:
+                    current_weight = 0
+                try:
+                    remaining_sec = float(data.get("remaining_sec", -1))
+                except:
+                    remaining_sec = -1
+                st.session_state.loadcell_data[loadcel] = {
+                    "current_weight": current_weight,
+                    "remaining_sec": remaining_sec
+                }
+                if loadcel not in st.session_state.loadcell_history:
+                    st.session_state.loadcell_history[loadcel] = []
+                st.session_state.loadcell_history[loadcel].append((timestamp, current_weight))
+                if len(st.session_state.loadcell_history[loadcel]) > 30:
+                    st.session_state.loadcell_history[loadcel] = st.session_state.loadcell_history[loadcel][-30:]
+        except Exception as e:
+            print(f"메시지 파싱 오류: {msg} | 오류: {e}")
 
 st.header("알림 설정")
 st.write("수액 잔량이 설정된 시간 미만으로 남았을 때 알림을 받도록 설정합니다.")
@@ -44,3 +76,11 @@ st.write("---")
 if st.button("설정 저장"):
     # 실제로는 이 값들을 파일이나 DB에 저장해야 함
     st.success("설정이 성공적으로 저장되었습니다! (현재는 세션에만 임시 저장됩니다)")
+
+# loadcell_history 사용 시 예시 (필요한 곳에 아래와 같이 사용)
+# history = loadcell_history.get(loadcel_id, [])
+# tuple_history = [h for h in history if isinstance(h, tuple) and len(h) == 2]
+# if tuple_history:
+#     timestamps = [h[0] for h in tuple_history]
+#     weights = [h[1] for h in tuple_history]
+#     ...
