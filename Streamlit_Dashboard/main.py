@@ -5,6 +5,7 @@ import websocket
 import time
 import json
 from streamlit_autorefresh import st_autorefresh
+import streamlit_js_eval
 
 # 페이지 설정
 st.set_page_config(
@@ -93,6 +94,120 @@ st.sidebar.header("Wake Up, It's a Hospital")
 st.sidebar.write("팀장: 김대연")
 st.sidebar.write("조원: 김윤성, 최황은, 최훈석")
 st.sidebar.markdown("---")
+
+# ====== 전역 알림 함수 및 알림 아이콘 함수 추가 ======
+def global_alert(message, bg_color="#ffcc00", text_color="#000"):
+    st.markdown(
+        f"""
+        <div style='position:fixed; top:0; left:0; right:0; z-index:9999; background-color:{bg_color}; color:{text_color}; padding:10px 20px; font-weight:bold; text-align:center;'>
+            {message}
+        </div>
+        <div style='margin-top:50px'></div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# ====== 알림창 열림 상태 관리 (클릭 토글) ======
+if "noti_open" not in st.session_state:
+    st.session_state.noti_open = False
+
+def toggle_noti():
+    st.session_state.noti_open = not st.session_state.noti_open
+
+# ====== 알림 리스트 및 중복 방지 플래그 관리 (autorefresh에도 유지) ======
+if "alert_list" not in st.session_state:
+    st.session_state.alert_list = []
+if "alert_flags" not in st.session_state:
+    st.session_state.alert_flags = set()
+
+def add_alert(pole, bottle, type_, extra=None):
+    key = f"{pole}-{bottle}-{type_}"
+    if key in st.session_state.alert_flags:
+        return
+    st.session_state.alert_flags.add(key)
+    msg = f"{pole}번 폴대 {bottle}번 링거 {type_}"
+    if extra:
+        msg += f" ({extra})"
+    st.session_state.alert_list.append({
+        "pole": pole,
+        "bottle": bottle,
+        "type": type_,
+        "msg": msg
+    })
+
+# ====== 알림 조건 체크 및 이벤트 트리거 ======
+# 예시 임계값 (실제 값에 맞게 조정)
+ALMOST_DONE_SEC = 300  # 5분 이하
+ALMOST_DONE_WEIGHT = 50  # 50g 이하
+DONE_SEC = 30  # 30초 이하
+DONE_WEIGHT = 5  # 5g 이하
+
+# loadcell_data 예시 구조: {loadcel: {"current_weight": ..., "remaining_sec": ..., "nurse_call": ...}}
+for loadcel, data in st.session_state.loadcell_data.items():
+    pole = loadcel  # 폴대 번호 (loadcel이 곧 폴대 번호라고 가정)
+    bottle = 1      # 링거 번호 (예시, 실제 데이터에 맞게 수정)
+    # 투여 거의 완료
+    if (0 < data.get("remaining_sec", 99999) <= ALMOST_DONE_SEC) or (0 < data.get("current_weight", 99999) <= ALMOST_DONE_WEIGHT):
+        add_alert(pole, bottle, "투여 거의 완료", f"남은 시간: {data.get('remaining_sec', '-'):.0f}s, 무게: {data.get('current_weight', '-'):.1f}g")
+    # 투여 완료
+    if (0 < data.get("remaining_sec", 99999) <= DONE_SEC) or (0 < data.get("current_weight", 99999) <= DONE_WEIGHT):
+        add_alert(pole, bottle, "투여 완료", f"남은 시간: {data.get('remaining_sec', '-'):.0f}s, 무게: {data.get('current_weight', '-'):.1f}g")
+    # 너스콜
+    if data.get("nurse_call", False):
+        add_alert(pole, bottle, "너스콜 발생")
+
+# # ====== 알림 리스트 출력 ======
+# st.markdown("### 📋 알림 리스트")
+# for alert in st.session_state.alert_list:
+#     st.info(alert["msg"])
+
+# ====== notification_icon 함수 수정 (Streamlit 버튼으로 토글) ======
+def notification_icon():
+    alert_count = len(st.session_state.get('alert_list', []))
+    badge_html = f'<span style="position:absolute;bottom:2px;right:2px;background:#ff4444;color:white;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-size:0.25em;font-weight:bold;border:1.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.12);line-height:1;">{"9+" if alert_count >= 9 else alert_count}</span>' if alert_count > 0 else ''
+    st.markdown(
+        f"""
+        <div style='position:fixed;top:60px;right:30px;z-index:10000;'>
+            <button style='position:relative;width:36px;height:36px;border:none;background:none;cursor:pointer;padding:0;' id='noti-bell-btn'>
+                <span style='font-size:2.1em;color:#ffb300;'><i class="fa fa-bell"></i></span>
+                {badge_html}
+            </button>
+        </div>
+        <script>
+        const btn = window.parent.document.getElementById('noti-bell-btn') || document.getElementById('noti-bell-btn');
+        if(btn){{btn.onclick = function(){{window.parent.postMessage({{type:'noti_bell_click'}},'*');}}}}
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
+    # 버튼 클릭 시 session_state.noti_open 토글
+    noti_clicked = st.button(" ", key="noti_bell_btn_fake", help="알림 보기", args=())
+    if noti_clicked:
+        st.session_state.noti_open = not st.session_state.noti_open
+    # 알림 드롭다운 표시
+    if st.session_state.noti_open:
+        alert_html = ""
+        if st.session_state.get('alert_list'):
+            alert_html += "<ul style='padding-left: 18px; margin: 0;'>"
+            for alert in st.session_state['alert_list']:
+                alert_html += f"<li style='margin-bottom: 6px; font-size: 0.98em;'>{alert['msg']}</li>"
+            alert_html += "</ul>"
+        else:
+            alert_html = "새로운 알림이 없습니다."
+        st.markdown(
+            f"""
+            <div style='position:fixed; top:98px; right:30px; z-index:10001; background:white; color:#222; border-radius:8px; box-shadow:0 2px 16px rgba(0,0,0,0.18); min-width:220px; padding:12px 16px; max-width:350px; word-break:break-all; max-height:180px; overflow-y:auto;'>
+                <b>알림</b><br>
+                {alert_html}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+if "global_alert_message" not in st.session_state:
+    st.session_state.global_alert_message = ""
+# ====== 실제 알림 표시 ======
+global_alert(st.session_state.global_alert_message, bg_color="#ff6666", text_color="#fff")
+notification_icon()
 
 # --- 1. 히어로 섹션 ---
 with st.container():
