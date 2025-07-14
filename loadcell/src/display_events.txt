@@ -1,0 +1,32 @@
+이벤트는 65 01 03 FF FF FF 이런 형식으로 옴
+그 이벤트를 아래와 같은 방법으로 읽으면 됨
+
+// 65 (0x65) 이벤트 시작 확인
+if (firstByte == 0x65) {
+    // 충분한 데이터가 있는지 확인
+    if (Serial2.available() >= 5) {
+        int secondByte = Serial2.read();
+        int thirdByte = Serial2.read();
+        int end1 = Serial2.read();
+        int end2 = Serial2.read();
+        int end3 = Serial2.read();
+        
+        // 65 01 03 FF FF FF 이벤트 확인
+        if (secondByte == 0x01 && thirdByte == 0x03 && 
+            end1 == 0xFF && end2 == 0xFF && end3 == 0xFF) {
+        Serial.println("hello");
+        }
+    }
+}
+
+비트가 의미하는 바는 앞에서부터 id, 페이지 번호, 이벤트 번호, 끝에 3개는 엔드비트임
+따라서 0번 페이지의 4번 객체에서 2번 이벤트를 발생시켰으면
+04 00 02 FF FF FF 이렇게 보내면 됨
+
+
+
+=====================================
+이벤트 목록
+
+0번 페이지
+00: 너스콜
