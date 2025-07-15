@@ -82,12 +82,12 @@ void process_loadcell_data(int loadcell_id, HX711 &scale, float &ema_previous, f
 void connectToWiFi();
 
 // Home
-#define WIFI_SSID "MERCUSYS_FF46"
-#define WIFI_PASSWORD "64196374"
+// #define WIFI_SSID "MERCUSYS_FF46"
+// #define WIFI_PASSWORD "64196374"
 
 // Hotspot
-// #define WIFI_SSID "12345678"
-// #define WIFI_PASSWORD "11333355555577777777"
+#define WIFI_SSID "12345678"
+#define WIFI_PASSWORD "11333355555577777777"
 
 // --- AWS & API Gateway ---
 #define API_GATEWAY_URL "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1/data"
@@ -188,37 +188,13 @@ void uploadToDynamoDB(int loadcell_id, float weight, float remaining_time) {
   }
 }
 
-// ===== pole_stat 상태를 읽는 함수 추가 =====
-bool getPoleStatTareRequested() {
-    if (WiFi.status() == WL_CONNECTED) {
-        WiFiClientSecure client;
-        client.setInsecure();
-        HTTPClient http;
-        http.begin(client, "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1/data");
-        http.addHeader("x-api-key", "NfM1X8S5xk72BrGbFqr1t9CMtzxMaeKe7PFatzaC"); // 여기에 실제 API 키 입력
-        int httpResponseCode = http.GET();
-        if (httpResponseCode == 200) {
-            String response = http.getString();
-            JsonDocument doc;
-            DeserializationError error = deserializeJson(doc, response);
-            if (!error) {
-                if (doc["tare_requested"].is<bool>()) {
-                    return doc["tare_requested"];
-                }
-            }
-        }
-        http.end();
-    }
-    return false;
-}
-
 // ===== pole_stat 업로드 함수 개선 (tare_requested를 인자로 받음) =====
 void uploadPoleStatTest(bool lost_status, int battery, bool tare_requested) {
     if (WiFi.status() == WL_CONNECTED) {
         WiFiClientSecure client;
         client.setInsecure();
         HTTPClient http;
-        http.begin(client, "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1/pole_stat/1");
+        http.begin(client, "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1/data");
         http.addHeader("Content-Type", "application/json");
         http.addHeader("x-api-key", "NfM1X8S5xk72BrGbFqr1t9CMtzxMaeKe7PFatzaC"); // 여기에 실제 API 키 입력
         JsonDocument doc;
@@ -433,10 +409,6 @@ void setup() {
   Serial.println("📦 's' 키를 누르면 측정 중단\n");
 } 
 
-// ===== pole_stat Tare 요청 폴링 관련 변수 및 함수 =====
-unsigned long lastTareCheck = 0;
-const unsigned long TARE_CHECK_INTERVAL = 2000; // 2초마다 체크
-
 // ===== 메인 루프 =====
 void loop() {
   // 시리얼 키 입력 확인
@@ -601,22 +573,6 @@ void loop() {
     sendCommand("t_esp.txt=\"" + espStatus + "\"");
     sendCommand("t_type_L.txt=\"" + typeL + "\"");
     sendCommand("t_type_R.txt=\"" + typeR + "\"");
-  }
-
-  // pole_stat Tare 요청 폴링
-  unsigned long now = millis();
-  if (now - lastTareCheck > TARE_CHECK_INTERVAL) {
-      lastTareCheck = now;
-      // 1. 최신 tare_requested 값 읽기
-      bool tare_requested = getPoleStatTareRequested();
-      // 2. 업로드 시 읽은 값을 그대로 사용
-      uploadPoleStatTest(true, 78, tare_requested); // 예시: lost, battery 78%
-      // 3. tare_requested가 true면 tare() 실행 후, false로 업로드
-      if (tare_requested) {
-          Serial.println("🟢 Tare 요청 감지! tare() 실행");
-          scale1.tare();
-          uploadPoleStatTest(true, 78, false); // tare_requested만 false로
-      }
   }
 
   delay(delay_interval);
