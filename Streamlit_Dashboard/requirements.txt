@@ -1,5 +1,5 @@
 streamlit
-websockets
+websocket-client
 boto3
 streamlit-autorefresh
 plotly

@@ -5,7 +5,6 @@ import websocket
 import time
 import json
 from streamlit_autorefresh import st_autorefresh
-import streamlit_js_eval
 
 # 페이지 설정
 st.set_page_config(

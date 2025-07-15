@@ -1,41 +1,36 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+import serial
+from ultralytics import YOLO
+import cv2
+# 클래스 정의
+CLASS_NAMES = ['person', 'helmet', 'fire', 'smoke', 'backpack']
+# 시리얼 포트 설정 (아두이노연결)
+ser = serial.Serial('COM6', 9600)  # 포트 및 속도는 환경에 맞게 설정
+def send_command(x1, x2, frame_width):
+    center = (x1 + x2) / 2
+    if center < frame_width * 0.4:
+        ser.write(b'left\n')
+    elif center > frame_width * 0.6:
+        ser.write(b'right\n')
+    else:
+        ser.write(b'stop\n')
 
-# CSV 파일 로드
-df = pd.read_csv('C:\\YS\\TUK\\Capstone\\Wake up\\Smart-Feature\\results.csv')
+def detect_and_control(image_path, model_path='yolov8n.pt'):
+    model = YOLO(model_path)
+    image = cv2.imread(image_path)
+    results = model(image)
+    boxes = results[0].boxes
 
-# loadcel 값이 1인 데이터만 필터링
-df = df[df['loadcel'] == 1].copy()
+    for box in boxes:
+        x1, y1, x2, y2 = map(int, box.xyxy[0])
+        cls_id = int(box.cls[0])
+        cls_name = CLASS_NAMES[cls_id]
 
-# timestamp를 datetime 형식으로 변환
-df['timestamp'] = pd.to_datetime(df['timestamp'])
+        if cls_name in ['person', 'fire', 'smoke']:
+            send_command(x1, x2, image.shape[1])
 
-# 기준 시간 설정 (첫 번째 시간)
-start_time = df['timestamp'].min()
-df['elapsed_sec'] = (df['timestamp'] - start_time).dt.total_seconds()
+    cv2.imshow('Object Detection', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
-# fig1: timestamp vs current_weight_history
-fig1, ax1 = plt.subplots()
-ax1.plot(df['timestamp'], df['current_weight_history'], label='Current Weight')
-ax1.set_xlabel('Timestamp')
-ax1.set_ylabel('Current Weight (g)')
-ax1.set_title('Timestamp vs Current Weight')
-ax1.grid(True)
-ax1.legend()
-
-# fig2: 실제 시간 vs 예측 시간 그래프
-fig2, ax2 = plt.subplots()
-ax2.plot(df['elapsed_sec'], df['elapsed_sec'], 'r-', label='Actual Time')
-ax2.plot(df['elapsed_sec'], df['remaining_sec_history'], 'b-', label='Remaining Sec (Predicted)')
-ax2.set_xlabel(f'Elapsed Time (sec, total {df["elapsed_sec"].max():.1f} sec)')
-ax2.set_ylabel('Time (sec)')
-ax2.set_title('Actual vs Predicted Remaining Time')
-ax2.legend()
-ax2.grid(True)
-ax2.invert_yaxis()
-# y축 눈금을 100 단위로 설정
-ax2.yaxis.set_major_locator(ticker.MultipleLocator(100))
-
-plt.tight_layout()
-plt.show()
+# 실행
+detect_and_control("disaster_scene.jpg")

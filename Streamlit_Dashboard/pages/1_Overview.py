@@ -5,6 +5,12 @@ import plotly.graph_objs as go
 import time
 import streamlit.components.v1 as components
 import json
+import boto3
+import os
+from datetime import datetime, timezone, timedelta
+import threading
+
+KST = timezone(timedelta(hours=9))
 
 st.set_page_config(layout="wide")
 
@@ -23,6 +29,11 @@ st.title("📊 전체 현황 대시보드")
 # 메인 페이지에서 이미 초기화된 session_state 데이터 사용
 loadcell_data = st.session_state.get('loadcell_data', {})
 loadcell_history = st.session_state.get('loadcell_history', {})
+
+# DynamoDB 연결 (환경변수나 credentials 필요)
+dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')  # 리전은 실제 환경에 맞게 수정
+POLESTAT_TABLE = 'pole_stat'
+table_polestat = dynamodb.Table(POLESTAT_TABLE)
 
 # WebSocket에서 받은 메시지 처리 (main.py와 동일하게)
 q = st.session_state.get("queue", None)
@@ -61,13 +72,80 @@ for loadcel_id in sorted(loadcell_data.keys()):
     st.write("---")
     st.subheader(f"로드셀 #{loadcel_id}")
 
+    # 원점 설정 버튼 및 피드백
+    def send_tare_false(battery_level, is_lost):
+        import time
+        time.sleep(10)
+        timestamp = datetime.now(KST).isoformat()
+        table_polestat.put_item(
+            Item={
+                'pole_id': 1,
+                'timestamp': timestamp,
+                'battery_level': battery_level,
+                'is_lost': is_lost,
+                'tare_requested': False
+            }
+        )
+
+    tare_btn = st.button(f"원점 설정 (Tare)", key=f"tare_{loadcel_id}")
+    if tare_btn:
+        try:
+            # 1. 최신 row 조회
+            response = table_polestat.query(
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('pole_id').eq(1),
+                ScanIndexForward=False,  # 내림차순
+                Limit=1
+            )
+            items = response.get('Items', [])
+            if items:
+                latest = items[0]
+                battery_level = latest.get('battery_level', -1)
+                is_lost = latest.get('is_lost', False)
+            else:
+                battery_level = -1
+                is_lost = False
+
+            # 2. 새로운 row 추가 (tare_requested=True)
+            timestamp = datetime.now(KST).isoformat()
+            table_polestat.put_item(
+                Item={
+                    'pole_id': 1,
+                    'timestamp': timestamp,
+                    'battery_level': battery_level,
+                    'is_lost': is_lost,
+                    'tare_requested': True
+                }
+            )
+            st.session_state[f"tare_feedback_{loadcel_id}"] = True
+
+            # 3. 10초 후 tare_requested=False로 자동 전송
+            threading.Thread(target=send_tare_false, args=(battery_level, is_lost), daemon=True).start()
+        except Exception as e:
+            st.error(f"DynamoDB 업데이트 실패: {e}")
+    if st.session_state.get(f"tare_feedback_{loadcel_id}", False):
+        st.success("원점 설정 요청됨 (DB 업데이트 완료)")
+
     # 데이터가 있는 로드셀만 그래프와 metric 표시
     if values['current_weight'] == 0 and values['remaining_sec'] == -1:
         st.warning("수액이 연결되지 않았습니다.")
     else:
         col1, col2 = st.columns(2)
-        col1.metric(label="현재 무게", value=values['current_weight'])
-        col2.metric(label="남은 시간(초)", value=values['remaining_sec'])
+        # 무게 인디케이터 (배터리 스타일)
+        full_weight = 1000  # 예시: 1000g을 full로 가정
+        current = values['current_weight']
+        percent = max(0, min(current / full_weight, 1))
+        filled = int(percent * 4 + 0.9999)  # 4칸, 올림
+        indicator = "".join(["■" if i < filled else "□" for i in range(4)])
+        col1.metric(label="현재 무게", value=f"{current}g  {indicator}")
+        # 남은 시간 인디케이터
+        # DB에서 가져오는 값이 분 단위이므로 초 단위로 변환
+        if values['remaining_sec'] < 0:
+            remaining_str = "정보 없음"
+        else:
+            remaining_sec = values['remaining_sec'] * 60  # 분 → 초 변환
+            minutes = int((remaining_sec + 299) // 300) * 5
+            remaining_str = f"{minutes}분 이하"
+        col2.metric(label="남은 시간", value=remaining_str)
         # plotly 그래프 추가 (history가 1개 이상일 때만)
         history = loadcell_history.get(loadcel_id, [])
         # 튜플만 필터링

@@ -81,8 +81,13 @@ void uploadNurseCall();
 void process_loadcell_data(int loadcell_id, HX711 &scale, float &ema_previous, float *ema_data, int &data_index);
 void connectToWiFi();
 
-#define WIFI_SSID "12345678"
-#define WIFI_PASSWORD "11333355555577777777"
+// Home
+#define WIFI_SSID "MERCUSYS_FF46"
+#define WIFI_PASSWORD "64196374"
+
+// Hotspot
+// #define WIFI_SSID "12345678"
+// #define WIFI_PASSWORD "11333355555577777777"
 
 // --- AWS & API Gateway ---
 #define API_GATEWAY_URL "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1/data"
@@ -155,6 +160,7 @@ void uploadToDynamoDB(int loadcell_id, float weight, float remaining_time) {
     HTTPClient http;
     http.begin(client, API_GATEWAY_URL);
     http.addHeader("Content-Type", "application/json");
+    http.addHeader("x-api-key", "NfM1X8S5xk72BrGbFqr1t9CMtzxMaeKe7PFatzaC"); // 여기에 실제 API 키 입력
 
     // JSON 페이로드 생성
     JsonDocument doc;
@@ -182,28 +188,49 @@ void uploadToDynamoDB(int loadcell_id, float weight, float remaining_time) {
   }
 }
 
-// ===== pole_stat 테스트 업로드 함수 =====
-void uploadPoleStatTest(bool lost_status, int battery) {
+// ===== pole_stat 상태를 읽는 함수 추가 =====
+bool getPoleStatTareRequested() {
     if (WiFi.status() == WL_CONNECTED) {
         WiFiClientSecure client;
         client.setInsecure();
-
         HTTPClient http;
-        http.begin(client, API_GATEWAY_URL); // 기존 loadcell과 같은 엔드포인트 사용
-        http.addHeader("Content-Type", "application/json");
+        http.begin(client, "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1/data");
+        http.addHeader("x-api-key", "NfM1X8S5xk72BrGbFqr1t9CMtzxMaeKe7PFatzaC"); // 여기에 실제 API 키 입력
+        int httpResponseCode = http.GET();
+        if (httpResponseCode == 200) {
+            String response = http.getString();
+            JsonDocument doc;
+            DeserializationError error = deserializeJson(doc, response);
+            if (!error) {
+                if (doc["tare_requested"].is<bool>()) {
+                    return doc["tare_requested"];
+                }
+            }
+        }
+        http.end();
+    }
+    return false;
+}
 
+// ===== pole_stat 업로드 함수 개선 (tare_requested를 인자로 받음) =====
+void uploadPoleStatTest(bool lost_status, int battery, bool tare_requested) {
+    if (WiFi.status() == WL_CONNECTED) {
+        WiFiClientSecure client;
+        client.setInsecure();
+        HTTPClient http;
+        http.begin(client, "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1/pole_stat/1");
+        http.addHeader("Content-Type", "application/json");
+        http.addHeader("x-api-key", "NfM1X8S5xk72BrGbFqr1t9CMtzxMaeKe7PFatzaC"); // 여기에 실제 API 키 입력
         JsonDocument doc;
         doc["pole_id"] = "1";
         doc["is_lost"] = lost_status;
         doc["battery_level"] = battery;
-
+        doc["tare_requested"] = tare_requested;
         String requestBody;
         serializeJson(doc, requestBody);
-
-        int httpResponseCode = http.POST(requestBody);
-
+        int httpResponseCode = http.PATCH(requestBody); // PATCH로 수정
         if (httpResponseCode == 200) {
-            Serial.println("✅ pole_stat 테스트 업로드 성공!");
+            Serial.println("✅ pole_stat 업로드 성공!");
         } else {
             Serial.printf("❌ 업로드 실패 (HTTP 코드: %d)\n", httpResponseCode);
             Serial.println(http.getString());
@@ -223,6 +250,7 @@ void uploadNurseCall() {
         HTTPClient http;
         http.begin(client, API_GATEWAY_URL);
         http.addHeader("Content-Type", "application/json");
+        http.addHeader("x-api-key", "NfM1X8S5xk72BrGbFqr1t9CMtzxMaeKe7PFatzaC"); // 여기에 실제 API 키 입력
 
         // 현재 무게 데이터 가져오기
         float current_weight = (data_index_1 > 0) ? ema_data_1[data_index_1 - 1] : 0;
@@ -397,13 +425,17 @@ void setup() {
   }
 
   // 테스트용 pole_stat 업로드 (예: lost 상황, 배터리 85%)
-  uploadPoleStatTest(true, 85);
+  uploadPoleStatTest(true, 85, false);
 
   Serial.println("ESP32 실시간 수액 예측 시스템 준비 완료");
   Serial.println("100ms마다 측정 + 하이브리드 필터 + 선형 회귀로 잔여 시간 예측 시작");
   Serial.println("Nextion 디스플레이와 연동됨");
   Serial.println("📦 's' 키를 누르면 측정 중단\n");
 } 
+
+// ===== pole_stat Tare 요청 폴링 관련 변수 및 함수 =====
+unsigned long lastTareCheck = 0;
+const unsigned long TARE_CHECK_INTERVAL = 2000; // 2초마다 체크
 
 // ===== 메인 루프 =====
 void loop() {
@@ -569,6 +601,22 @@ void loop() {
     sendCommand("t_esp.txt=\"" + espStatus + "\"");
     sendCommand("t_type_L.txt=\"" + typeL + "\"");
     sendCommand("t_type_R.txt=\"" + typeR + "\"");
+  }
+
+  // pole_stat Tare 요청 폴링
+  unsigned long now = millis();
+  if (now - lastTareCheck > TARE_CHECK_INTERVAL) {
+      lastTareCheck = now;
+      // 1. 최신 tare_requested 값 읽기
+      bool tare_requested = getPoleStatTareRequested();
+      // 2. 업로드 시 읽은 값을 그대로 사용
+      uploadPoleStatTest(true, 78, tare_requested); // 예시: lost, battery 78%
+      // 3. tare_requested가 true면 tare() 실행 후, false로 업로드
+      if (tare_requested) {
+          Serial.println("🟢 Tare 요청 감지! tare() 실행");
+          scale1.tare();
+          uploadPoleStatTest(true, 78, false); // tare_requested만 false로
+      }
   }
 
   delay(delay_interval);
