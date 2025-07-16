@@ -53,6 +53,20 @@ def get_history_df():
 
 df = get_history_df()
 
+# === 상단 카드 요약 ===
+if not df.empty:
+    tz = df['timestamp'].dt.tz
+    today = pd.Timestamp.now(tz=tz).normalize()
+    week_start = today - pd.Timedelta(days=today.weekday())
+    month_start = today.replace(day=1)
+    today_sum = df[df['timestamp'].dt.date == today.date()]['current_weight_history'].sum() / 1000
+    week_sum = df[(df['timestamp'] >= week_start)]['current_weight_history'].sum() / 1000
+    month_sum = df[(df['timestamp'] >= month_start)]['current_weight_history'].sum() / 1000
+    col1, col2, col3 = st.columns(3)
+    col1.metric("오늘 총 사용량", f"{today_sum:.1f}kg")
+    col2.metric("이번주 총 사용량", f"{week_sum:.1f}kg")
+    col3.metric("이번달 총 사용량", f"{month_sum:.1f}kg")
+
 if df.empty:
     st.warning("아직 기록된 데이터가 없습니다.")
 else:
@@ -83,22 +97,46 @@ else:
         (df['timestamp'] <= end_dt)
     ]
 
-    # 2. 기간별 무게 변화
-    st.subheader("기간별 무게 변화")
+    # 2. 기간별 무게 변화(감소량, kg)
+    st.subheader("기간별 무게 변화(감소량, kg)")
     if filtered.empty:
         st.info("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        fig = px.line(filtered, x='timestamp', y='current_weight_history', color='loadcel', markers=True,
-                      labels={'current_weight_history': '무게', 'timestamp': '시간', 'loadcel': '장비'})
-        st.plotly_chart(fig, use_container_width=True)
-
-    # 3. 장비별 평균 사용량/최대/최소
-    st.subheader("장비별 통계 요약")
-    st.dataframe(
-        filtered.groupby('loadcel')['current_weight_history'].agg(['count', 'mean', 'min', 'max']).rename(
-            columns={'count': '측정수', 'mean': '평균무게', 'min': '최소', 'max': '최대'}
+        filtered = filtered.sort_values('timestamp')
+        filtered['prev_weight'] = filtered.groupby('loadcel')['current_weight_history'].shift(1)
+        filtered['usage'] = (filtered['prev_weight'] - filtered['current_weight_history']).clip(lower=0) / 1000
+        # 감소량(usage, kg) 기준으로 라인차트 표시
+        fig = px.line(
+            filtered,
+            x='timestamp',
+            y='usage',
+            color='loadcel',
+            markers=True,
+            labels={'usage': '감소량(kg)', 'timestamp': '시간', 'loadcel': '장비'}
         )
-    )
+        st.plotly_chart(fig, use_container_width=True)
+        # === 히트맵 추가 ===
+        st.subheader("시간대별 사용량(kg)")
+        filtered['hour'] = filtered['timestamp'].dt.hour
+        # 시간대별 변화량(사용량) 계산 (kg)
+        filtered = filtered.sort_values('timestamp')
+        filtered['prev_weight'] = filtered.groupby('loadcel')['current_weight_history'].shift(1)
+        filtered['usage'] = (filtered['prev_weight'] - filtered['current_weight_history']).clip(lower=0) / 1000
+        usage_by_hour = filtered.groupby(['hour', 'loadcel'])['usage'].sum().reset_index()
+        usage_by_hour['usage'] = usage_by_hour['usage'].round(1)
+        heatmap_pivot = usage_by_hour.pivot(index='hour', columns='loadcel', values='usage').fillna(0)
+        styled_heatmap = heatmap_pivot.style.format("{:.1f}").background_gradient(cmap='Blues')
+        st.dataframe(styled_heatmap, height=300)
+
+    # 3. 장비별 랭킹
+    st.subheader("장비별 사용량 랭킹(kg)")
+    # 장비별 총 사용량(kg) 계산
+    filtered['usage'] = (filtered['prev_weight'] - filtered['current_weight_history']).clip(lower=0) / 1000
+    rank_df = filtered.groupby('loadcel')['usage'].sum().reset_index()
+    rank_df['usage'] = rank_df['usage'].round(1)
+    rank_df = rank_df.sort_values('usage', ascending=False)
+    rank_df.index += 1
+    st.dataframe(rank_df.rename(columns={'usage': '총 사용량(kg)'}))
 
     # 4. 이상치(급격한 변화) 탐지 예시
     st.subheader("이상치(급격한 변화) 탐지")
@@ -108,6 +146,16 @@ else:
         st.info("이상 변화(급격한 무게 변화) 없음")
     else:
         st.dataframe(outlier[['loadcel', 'timestamp', 'current_weight_history', 'diff']])
+
+    # === 데이터 다운로드 ===
+    st.subheader("데이터 다운로드")
+    csv = filtered.to_csv(index=False).encode('utf-8-sig')
+    st.download_button(
+        label="CSV로 다운로드",
+        data=csv,
+        file_name="filtered_stats.csv",
+        mime='text/csv'
+    )
 
 # loadcell_history 사용 시 예시 (필요한 곳에 아래와 같이 사용)
 # history = loadcell_history.get(loadcel_id, [])
