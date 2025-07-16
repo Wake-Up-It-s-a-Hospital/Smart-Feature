@@ -23,6 +23,23 @@ st.sidebar.write("수액의 현재 무게와")
 st.sidebar.write("남은 시간을 확인합니다.")
 st.sidebar.markdown("---")
 
+# ====== 사이드바에 알림 리스트 출력 ======
+st.sidebar.markdown("### 📋 알림")
+if st.session_state.get('alert_list'):
+    for alert in st.session_state['alert_list']:
+        if alert["id"] == 1:
+            st.sidebar.success(alert["msg"])
+        elif alert["id"] == 2:
+            st.sidebar.warning(alert["msg"])
+        elif alert["id"] == 3:
+            st.sidebar.error(alert["msg"])
+        elif alert["id"] == 4:
+            st.sidebar.error(alert["msg"])
+        else:
+            st.sidebar.info(alert["msg"])
+else:
+    st.sidebar.info("새로운 알림이 없습니다.")
+
 # --- UI 표시 ---
 st.title("📊 전체 현황 대시보드")
 

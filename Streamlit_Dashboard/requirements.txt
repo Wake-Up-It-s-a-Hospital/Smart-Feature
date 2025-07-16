@@ -5,3 +5,4 @@ streamlit-autorefresh
 plotly
 pandas
 pytz
+fpdf
