@@ -3,15 +3,36 @@ import json
 
 st.title("⚙️ 설정")
 
+# ====== 사이드바에 알림 리스트 출력 ======
+st.sidebar.markdown("### 📋 알림")
+if st.session_state.get('alert_list'):
+    for alert in st.session_state['alert_list']:
+        if alert["id"] == 1:
+            st.sidebar.success(alert["msg"])
+        elif alert["id"] == 2:
+            st.sidebar.warning(alert["msg"])
+        elif alert["id"] == 3:
+            st.sidebar.error(alert["msg"])
+        elif alert["id"] == 4:
+            st.sidebar.error(alert["msg"])
+        else:
+            st.sidebar.info(alert["msg"])
+else:
+    st.sidebar.info("새로운 알림이 없습니다.")
+
 # === 장비별 알림 임계값 설정 ===
 st.subheader("장비별 알림 임계값 설정")
 loadcell_ids = st.session_state.get('loadcell_data', {}).keys()
 if loadcell_ids:
     for loadcel in loadcell_ids:
-        key = f'alert_threshold_{loadcel}'
-        if key not in st.session_state:
-            st.session_state[key] = 15
-        st.session_state[key] = st.slider(f"장비 {loadcel} 교체 필요 알림 기준 (분)", 5, 60, st.session_state[key], 5)
+        key_almost = f'alert_almost_weight_{loadcel}'
+        key_done = f'alert_done_weight_{loadcel}'
+        if key_almost not in st.session_state:
+            st.session_state[key_almost] = 300
+        if key_done not in st.session_state:
+            st.session_state[key_done] = 150
+        st.session_state[key_almost] = st.slider(f"장비 {loadcel} 거의 다 됨 알림 기준 (g)", 100, 500, st.session_state[key_almost], 10)
+        st.session_state[key_done] = st.slider(f"장비 {loadcel} 투여 완료 알림 기준 (g)", 100, 500, st.session_state[key_done], 10)
 else:
     st.info("장비 데이터가 없습니다. (실시간 데이터 수신 필요)")
 

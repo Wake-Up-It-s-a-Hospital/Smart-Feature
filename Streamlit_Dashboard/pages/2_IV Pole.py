@@ -14,6 +14,23 @@ st.sidebar.write("각 링거 폴대의 다양한")
 st.sidebar.write("데이터를 확인합니다.")
 st.sidebar.markdown("---")
 
+# ====== 사이드바에 알림 리스트 출력 ======
+st.sidebar.markdown("### 📋 알림")
+if st.session_state.get('alert_list'):
+    for alert in st.session_state['alert_list']:
+        if alert["id"] == 1:
+            st.sidebar.success(alert["msg"])
+        elif alert["id"] == 2:
+            st.sidebar.warning(alert["msg"])
+        elif alert["id"] == 3:
+            st.sidebar.error(alert["msg"])
+        elif alert["id"] == 4:
+            st.sidebar.error(alert["msg"])
+        else:
+            st.sidebar.info(alert["msg"])
+else:
+    st.sidebar.info("새로운 알림이 없습니다.")
+
 # WebSocket에서 받은 메시지 처리 (main.py와 동일하게)
 q = st.session_state.get("queue", None)
 if q is not None:
@@ -61,7 +78,7 @@ else:
 
     if selected_device:
         st.write("---")
-        st.header(f"장비 #{selected_device} 상세 정보")
+        st.header(f"{selected_device}번 폴대의 상세 정보")
         device_data = loadcell_data[selected_device]
         # === 배터리 정보 조회 ===
         # 최신 battery_level을 가져오기 (pole_id == selected_device)

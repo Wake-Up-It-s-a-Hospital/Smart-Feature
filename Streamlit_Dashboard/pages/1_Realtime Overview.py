@@ -23,6 +23,23 @@ st.sidebar.write("수액의 현재 무게와")
 st.sidebar.write("남은 시간을 확인합니다.")
 st.sidebar.markdown("---")
 
+# ====== 사이드바에 알림 리스트 출력 ======
+st.sidebar.markdown("### 📋 알림")
+if st.session_state.get('alert_list'):
+    for alert in st.session_state['alert_list']:
+        if alert["id"] == 1:
+            st.sidebar.success(alert["msg"])
+        elif alert["id"] == 2:
+            st.sidebar.warning(alert["msg"])
+        elif alert["id"] == 3:
+            st.sidebar.error(alert["msg"])
+        elif alert["id"] == 4:
+            st.sidebar.error(alert["msg"])
+        else:
+            st.sidebar.info(alert["msg"])
+else:
+    st.sidebar.info("새로운 알림이 없습니다.")
+
 # --- UI 표시 ---
 st.title("📊 전체 현황 대시보드")
 
@@ -69,13 +86,26 @@ if q is not None:
                     current_weight = float(data.get("current_weight", 0))
                 except:
                     current_weight = 0
-                try:
-                    remaining_sec = float(data.get("remaining_sec", -1))
-                except:
-                    remaining_sec = -1
+                # === 기존 서버에서 remaining_sec 받아오는 부분 주석처리 ===
+                # try:
+                #     remaining_sec = float(data.get("remaining_sec", -1))
+                # except:
+                #     remaining_sec = -1
+                # === 남은 시간 계산: 현재 무게 기반 ===
+                # 1kg = 1000g, 시간당 250ml(=250g) 소모, 남은 시간(초)
+                if 'weight_sec_calc' not in st.session_state:
+                    st.session_state['weight_sec_calc'] = {}
+                prev_sec = st.session_state['weight_sec_calc'].get(loadcel, None)
+                est_sec = (current_weight / 250) * 3600 if current_weight > 0 else -1
+                if est_sec > 0:
+                    est_sec = int((est_sec + 299) // 300) * 300
+                if prev_sec is not None and est_sec > prev_sec:
+                    est_sec = prev_sec
+                st.session_state['weight_sec_calc'][loadcel] = est_sec
+                weight_sec = est_sec
                 st.session_state.loadcell_data[loadcel] = {
                     "current_weight": current_weight,
-                    "remaining_sec": remaining_sec
+                    # "weight_sec": weight_sec  # 서버 기반 남은 시간 저장 주석처리
                 }
                 if loadcel not in st.session_state.loadcell_history:
                     st.session_state.loadcell_history[loadcel] = []
@@ -120,24 +150,45 @@ for loadcel_id in sorted(loadcell_data.keys()):
         st.session_state['tare_offsets'][loadcel_id] = values['current_weight']
         # 그래프 히스토리도 리셋
         st.session_state.loadcell_history[loadcel_id] = []
-        st.success("영점 설정 완료!")
+        # === 추가: 영점 시각 기록 및 full_weight 초기화 ===
+        st.session_state[f'tare_time_{loadcel_id}'] = time.time()
+        st.session_state[f'full_weight_{loadcel_id}'] = None
+        st.success("영점 설정 완료! 30초 후 수액팩 무게가 자동으로 기준이 됩니다.")
     tare_offset = st.session_state['tare_offsets'].get(loadcel_id, 0)
-
+    tare_time = st.session_state.get(f'tare_time_{loadcel_id}', None)
+    full_weight = st.session_state.get(f'full_weight_{loadcel_id}', None)
+    now = time.time()
+    if tare_time is not None and full_weight is None:
+        if now - tare_time >= 30:
+            full_weight_val = values['current_weight'] - tare_offset
+            if full_weight_val > 0:
+                st.session_state[f'full_weight_{loadcel_id}'] = full_weight_val
+                full_weight = full_weight_val
+        else:
+            st.info(f"수액팩을 걸어주세요! {int(30 - (now - tare_time))}초 후 수액 무게가 기준이 됩니다.")
     # === 표시용 무게 계산 ===
     display_weight = values['current_weight'] - tare_offset
     if display_weight < 0:
         display_weight = 0
     display_weight = round(display_weight, 1)
-
+    # === weight_sec를 매번 계산 ===
+    if display_weight > 0:
+        weight_sec = (display_weight / 250) * 3600
+        weight_sec = int((weight_sec + 299) // 300) * 300
+    else:
+        weight_sec = -1
     # 데이터가 있는 로드셀만 그래프와 metric 표시
-    if values['current_weight'] == 0 and values['remaining_sec'] == -1:
+    if values['current_weight'] == 0 and weight_sec == -1:
         st.warning("수액이 연결되지 않았습니다.")
     else:
         col1, col2, col3 = st.columns(3)
         # 무게 인디케이터 (배터리 스타일)
-        full_weight = 1000  # 예시: 1000g을 full로 가정
-        percent = max(0, min(display_weight / full_weight, 1))
-        filled = int(percent * 4 + 0.9999)  # 4칸, 올림
+        if full_weight is not None and full_weight > 0:
+            percent = max(0, min(display_weight / full_weight, 1))
+            filled = int(percent * 4 + 0.9999)  # 4칸, 올림
+        else:
+            percent = 0
+            filled = 0
         indicator_html = """
         <style>
         .indicator-bar {
@@ -174,12 +225,11 @@ for loadcel_id in sorted(loadcell_data.keys()):
                 indicator_html += "<div class='indicator-box empty'></div>"
         indicator_html += "</div>"
         col1.metric(label="현재 무게", value=f"{display_weight}g")
-        # 남은 시간 인디케이터
-        if values['remaining_sec'] < 0:
+        # 남은 시간 인디케이터 (무게 기반 계산값만 사용)
+        if weight_sec < 0:
             remaining_str = "정보 없음"
         else:
-            remaining_sec = values['remaining_sec'] * 60  # 분 → 초 변환
-            minutes = int((remaining_sec + 299) // 300) * 5
+            minutes = int((weight_sec + 299) // 300) * 5
             if minutes < 60:
                 remaining_str = f"{minutes}분 이하"
             else:
@@ -195,7 +245,7 @@ for loadcel_id in sorted(loadcell_data.keys()):
         # plotly 그래프 추가 (history가 1개 이상일 때만)
         history = loadcell_history.get(loadcel_id, [])
         tuple_history = [h for h in history if isinstance(h, tuple) and len(h) == 2]
-        if tuple_history and not (values['current_weight'] == 0 and values['remaining_sec'] == -1):
+        if tuple_history and not (values['current_weight'] == 0 and weight_sec == -1):
             timestamps = [h[0] for h in tuple_history]
             weights = [round(max(0, h[1] - tare_offset), 1) for h in tuple_history]
             fig = go.Figure()
