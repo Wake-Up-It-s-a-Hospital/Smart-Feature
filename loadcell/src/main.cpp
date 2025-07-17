@@ -16,6 +16,7 @@ void sendCommand(const String& cmd) {
   Serial2.write(0xFF);
   Serial2.write(0xFF);
 }
+int simple_remaining_sec = 0;
 
 // ===== 하이브리드 필터 클래스 =====
 class HybridFilter {
@@ -95,6 +96,9 @@ void connectToWiFi();
 // --- Pin Definitions ---
 #define DOUT1 34
 #define CLK1  25
+#define LED_PIN 19
+unsigned long last_blink_time = 0;
+bool led_state = false;
 
 // --- HX711 Instances ---
 HX711 scale1;
@@ -307,27 +311,50 @@ void process_loadcell_data(
     }
 
     float current_weight = ema_data[data_index - 1];
-    
-    // 무게가 0 이하면 0으로 보정
     if (current_weight < 0) current_weight = 0;
 
-    if (abs(slope_estimate) < 0.001) {
-        Serial.printf("⚠️ 로드셀 %d: 변화량 작아 예측 불가 (무게만 업로드)\n", loadcell_id);
-        Serial.printf("로드셀 %d의 무게: %.2f g\n", loadcell_id, current_weight);
-        uploadToDynamoDB(loadcell_id, current_weight, -1);
-        return;
+    // === LED 제어 ===
+    if (current_weight <= 300) {
+        // 깜빡임: 0.5초마다 ON/OFF
+        unsigned long now = millis();
+        if (now - last_blink_time >= 500) {
+            led_state = !led_state;
+            digitalWrite(LED_PIN, led_state ? HIGH : LOW);
+            last_blink_time = now;
+        }
+    } else if (current_weight <= 500) {
+        // 500g 이하~300g 초과: 항상 ON
+        digitalWrite(LED_PIN, HIGH);
+        led_state = true;
+        last_blink_time = millis(); // 깜빡임 타이머 리셋
+    } else {
+        // 500g 초과: 항상 OFF
+        digitalWrite(LED_PIN, LOW);
+        led_state = false;
+        last_blink_time = millis(); // 깜빡임 타이머 리셋
     }
 
-    // 기울기 부호를 반대로 해서 테스트 (임시 해결책)
-    float remaining_time = -1;
-    if (slope_estimate > 0.001) {  // 양수 기울기일 때 계산 (임시)
-      remaining_time = current_weight / slope_estimate;
-    }
+    // === 오버뷰 방식의 단순 남은 시간 계산 ===
+    float simple_remaining_sec = (current_weight > 0) ? (current_weight / 250.0f) * 3600.0f : -1;
 
-    Serial.printf("📦 로드셀 %d | 📉 기울기: %.4f g/s | 무게: %.2f g | 남은 시간: %.1f 초\n",
-                  loadcell_id, slope_estimate, current_weight, remaining_time);
+    // // 기존 회귀 기반 예측 코드 (주석처리)
+    // if (abs(slope_estimate) < 0.001) {
+    //     Serial.printf("⚠️ 로드셀 %d: 변화량 작아 예측 불가 (무게만 업로드)\n", loadcell_id);
+    //     Serial.printf("로드셀 %d의 무게: %.2f g\n", loadcell_id, current_weight);
+    //     uploadToDynamoDB(loadcell_id, current_weight, -1);
+    //     return;
+    // }
+    // float remaining_time = -1;
+    // if (slope_estimate > 0.001) {  // 양수 기울기일 때 계산 (임시)
+    //   remaining_time = current_weight / slope_estimate;
+    // }
+    // Serial.printf("📦 로드셀 %d | 📉 기울기: %.4f g/s | 무게: %.2f g | 남은 시간: %.1f 초\n",
+    //               loadcell_id, slope_estimate, current_weight, remaining_time);
+    // uploadToDynamoDB(loadcell_id, current_weight, remaining_time);
 
-    uploadToDynamoDB(loadcell_id, current_weight, remaining_time);
+    // === 오버뷰 방식으로 서버 업로드 ===
+    Serial.printf("📦 로드셀 %d | 무게: %.2f g | (단순계산) 남은 시간: %.1f 초\n", loadcell_id, current_weight, simple_remaining_sec);
+    uploadToDynamoDB(loadcell_id, current_weight, simple_remaining_sec);
 }
 
 // ===== Wi-Fi 연결 =====
@@ -407,6 +434,9 @@ void setup() {
   Serial.println("100ms마다 측정 + 하이브리드 필터 + 선형 회귀로 잔여 시간 예측 시작");
   Serial.println("Nextion 디스플레이와 연동됨");
   Serial.println("📦 's' 키를 누르면 측정 중단\n");
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW); // 처음엔 꺼짐
 } 
 
 // ===== 메인 루프 =====
@@ -559,9 +589,11 @@ void loop() {
     sendCommand("t_wgt_R.txt=\"" + String(weightR) + "g\"");
 
     // 남은 시간 표시 (0 미만 방지)
-    int remSecR = (remaining_time > 0) ? (int)remaining_time : 0;
+    int remSecR = (simple_remaining_sec > 0) ? (int)simple_remaining_sec : 0;
+    int remHour = remSecR / 3600;
+    int remMin = (remSecR % 3600) / 60;
     char remRBuf[6];
-    sprintf(remRBuf, "%02d:%02d", remSecR / 60, remSecR % 60);
+    sprintf(remRBuf, "%02d:%02d", remHour, remMin);
     sendCommand("t_rem_R.txt=\"" + String(remRBuf) + "\"");
 
     // 기타 정보 고정 전송
