@@ -37,29 +37,6 @@ if st.session_state.get('alert_list'):
 else:
     st.sidebar.info("새로운 알림이 없습니다.")
 
-# === 알림 임계값 설정 ===
-st.subheader("알림 임계값 설정")
-if 'alert_almost_weight' not in st.session_state:
-    st.session_state['alert_almost_weight'] = 300
-if 'alert_done_weight' not in st.session_state:
-    st.session_state['alert_done_weight'] = 150
-st.session_state['alert_almost_weight'] = st.slider("거의 다 됨 알림 기준 (g)", 100, 500, st.session_state['alert_almost_weight'], 10)
-st.session_state['alert_done_weight'] = st.slider("투여 완료 알림 기준 (g)", 100, 500, st.session_state['alert_done_weight'], 10)
-
-# === 알림 방식 설정 ===
-st.subheader("알림 방식 설정")
-col1, col2 = st.columns([1, 1])
-with col1:
-    email_enabled = st.checkbox("이메일 알림", value=True)
-    st.session_state['email_enabled'] = email_enabled
-    if email_enabled:
-        st.text_input("알림 수신 이메일 주소", "user@example.com")
-with col2:
-    sms_enabled = st.checkbox("SMS 알림", value=False)
-    st.session_state['sms_enabled'] = sms_enabled
-    if sms_enabled:
-        st.text_input("알림 수신 휴대폰 번호", "010-0000-0000")
-
 # === 알림 카테고리별 표시 여부 설정 ===
 st.subheader("알림 카테고리별 표시 설정")
 if 'alert_enabled_almost' not in st.session_state:
@@ -76,10 +53,19 @@ with col2:
 with col3:
     st.session_state['alert_enabled_nursecall'] = st.checkbox("너스콜 알림", value=st.session_state['alert_enabled_nursecall'])
 
-# loadcell_history 사용 시 예시 (필요한 곳에 아래와 같이 사용)
-# history = loadcell_history.get(loadcel_id, [])
-# tuple_history = [h for h in history if isinstance(h, tuple) and len(h) == 2]
-# if tuple_history:
-#     timestamps = [h[0] for h in tuple_history]
-#     weights = [h[1] for h in tuple_history]
-#     ...
+# === 알림 임계값 설정 ===
+st.subheader("알림 임계값 설정")
+if st.session_state['alert_enabled_almost']:
+    if 'alert_almost_weight' not in st.session_state:
+        st.session_state['alert_almost_weight'] = 300
+    st.session_state['alert_almost_weight'] = st.slider("거의 다 됨 알림 기준 (g)", 100, 500, st.session_state['alert_almost_weight'], 10)
+if st.session_state['alert_enabled_done']:
+    if 'alert_done_weight' not in st.session_state:
+        st.session_state['alert_done_weight'] = 150
+    st.session_state['alert_done_weight'] = st.slider("투여 완료 알림 기준 (g)", 100, 500, st.session_state['alert_done_weight'], 10)
+
+# === 기타 시스템 정보/버전 ===
+st.markdown("---")
+st.subheader("시스템 정보")
+st.markdown("- 버전: v1.3.8")
+st.markdown("- 최근 업데이트: 2025-07-18")
