@@ -588,6 +588,19 @@ void loop() {
     int weightR = max(0, (int)current_weight);
     sendCommand("t_wgt_R.txt=\"" + String(weightR) + "g\"");
 
+    // === [추가] 오른쪽 프로그레스바 값 계산 및 전송 ===
+    int min_weight = 100;
+    int max_weight = 1000;
+    int progressR = 0;
+    if (weightR <= min_weight) {
+        progressR = 0;
+    } else if (weightR >= max_weight) {
+        progressR = 100;
+    } else {
+        progressR = (int)(((float)(weightR - min_weight) / (max_weight - min_weight)) * 100);
+    }
+    sendCommand("pr_wgt_r.val=" + String(progressR));
+
     // 남은 시간 표시 (0 미만 방지)
     int remSecR = (simple_remaining_sec > 0) ? (int)simple_remaining_sec : 0;
     int remHour = remSecR / 3600;
