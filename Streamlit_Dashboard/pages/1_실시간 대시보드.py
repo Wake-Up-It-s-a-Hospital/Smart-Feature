@@ -27,16 +27,20 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### 📋 알림")
 if st.session_state.get('alert_list'):
     for alert in st.session_state['alert_list']:
-        if alert["id"] == 1:
-            st.sidebar.success(alert["msg"])
-        elif alert["id"] == 2:
-            st.sidebar.warning(alert["msg"])
-        elif alert["id"] == 3:
-            st.sidebar.error(alert["msg"])
-        elif alert["id"] == 4:
-            st.sidebar.error(alert["msg"])
-        else:
-            st.sidebar.info(alert["msg"])
+        # === [수정] full_weight가 None이 아닐 때만 알림 표시 ===
+        loadcel_id = alert.get('loadcel_id', '1')
+        full_weight = st.session_state.get(f'full_weight_{loadcel_id}', None)
+        if full_weight is not None:
+            if alert["id"] == 1:
+                st.sidebar.success(alert["msg"])
+            elif alert["id"] == 2:
+                st.sidebar.warning(alert["msg"])
+            elif alert["id"] == 3:
+                st.sidebar.error(alert["msg"])
+            elif alert["id"] == 4:
+                st.sidebar.error(alert["msg"])
+            else:
+                st.sidebar.info(alert["msg"])
 else:
     st.sidebar.info("새로운 알림이 없습니다.")
 

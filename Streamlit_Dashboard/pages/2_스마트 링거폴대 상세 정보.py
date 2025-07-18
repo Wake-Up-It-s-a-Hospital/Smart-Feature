@@ -45,9 +45,10 @@ if q is not None:
                     current_weight = float(data.get("current_weight", 0))
                 except:
                     current_weight = 0
-                try:
-                    remaining_sec = float(data.get("remaining_sec", -1))
-                except:
+                # === 남은 시간 계산: 현재 무게 기반 ===
+                if current_weight > 0:
+                    remaining_sec = (current_weight / 250) * 3600
+                else:
                     remaining_sec = -1
                 st.session_state.loadcell_data[loadcel] = {
                     "current_weight": current_weight,
@@ -99,8 +100,14 @@ else:
         # === 4열 레이아웃 ===
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("현재 무게 (g)", f"{display_weight}g")
-        try:
-            remaining_sec = float(device_data.get('remaining_sec', 0)) * 60
+        # === 남은 시간: 무게 기반 단순 계산 ===
+        if display_weight > 0:
+            remaining_sec = (display_weight / 250) * 3600
+        else:
+            remaining_sec = -1
+        if remaining_sec < 0:
+            remaining_str = '정보 없음'
+        else:
             minutes = int((remaining_sec + 299) // 300) * 5
             if minutes < 60:
                 remaining_str = f"{minutes}분 이하"
@@ -111,8 +118,6 @@ else:
                     remaining_str = f"{hours}시간 이하"
                 else:
                     remaining_str = f"{hours}시간 {mins}분 이하"
-        except (ValueError, TypeError):
-            remaining_str = '정보 없음'
         col2.metric("남은 시간", remaining_str)
         # 인디케이터
         full_weight = 1000

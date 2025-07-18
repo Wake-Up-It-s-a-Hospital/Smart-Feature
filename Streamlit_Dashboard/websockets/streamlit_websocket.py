@@ -3,24 +3,28 @@ import websockets
 import boto3
 import json
 import os
+import time
 
 clients = set()
 
 # DynamoDB 설정
 TABLE_NAME = os.environ.get("DYNAMODB_TABLE", "loadcell")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
-POLL_INTERVAL_SECONDS = 1
+POLL_INTERVAL_SECONDS = 60
 
 dynamodb_client = boto3.client('dynamodb', region_name=AWS_REGION)
 # loadcell_history 테이블 리소스
 history_table = boto3.resource('dynamodb', region_name=AWS_REGION).Table('loadcell_history')
 
 def upload_history(loadcel, current_weight, remaining_sec, timestamp):
+    # 1주일(7일) 후 만료 시각 계산
+    expire_at = int(time.time()) + 7 * 24 * 60 * 60  # 현재 시각 + 7일(초)
     item = {
         'loadcel': str(loadcel),
         'current_weight_history': str(current_weight),
         'remaining_sec_history': str(remaining_sec),
-        'timestamp': timestamp
+        'timestamp': timestamp,
+        'expire_at': expire_at  # TTL 필드 추가
     }
     history_table.put_item(Item=item)
     print(f"[히스토리 업로드] {item}")

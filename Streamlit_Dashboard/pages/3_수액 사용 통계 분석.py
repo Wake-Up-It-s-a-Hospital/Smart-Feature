@@ -19,9 +19,10 @@ if q is not None:
                     current_weight = float(data.get("current_weight", 0))
                 except:
                     current_weight = 0
-                try:
-                    remaining_sec = float(data.get("remaining_sec", -1))
-                except:
+                # === 남은 시간 계산: 현재 무게 기반 ===
+                if current_weight > 0:
+                    remaining_sec = (current_weight / 250) * 3600
+                else:
                     remaining_sec = -1
                 st.session_state.loadcell_data[loadcel] = {
                     "current_weight": current_weight,
@@ -70,7 +71,8 @@ def get_history_df():
     df = pd.DataFrame(items)
     if not df.empty:
         df['current_weight_history'] = pd.to_numeric(df['current_weight_history'], errors='coerce')
-        df['remaining_sec_history'] = pd.to_numeric(df['remaining_sec_history'], errors='coerce')
+        # === 남은 시간 컬럼을 무게 기반으로 새로 계산 ===
+        df['remaining_sec_history'] = df['current_weight_history'].apply(lambda w: (w/250)*3600 if w > 0 else -1)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
     return df
 
