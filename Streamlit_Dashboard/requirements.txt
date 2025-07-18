@@ -1,0 +1,8 @@
+streamlit
+websocket-client
+boto3
+streamlit-autorefresh
+plotly
+pandas
+pytz
+fpdf
