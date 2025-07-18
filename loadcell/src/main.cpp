@@ -35,7 +35,7 @@ public:
         // 초기화 중일 때는 원본 값 반환
         if (!is_initialized && index < 10) {
             return new_value;
-        }
+        } 
         
         if (index == 0) {
             is_initialized = true;

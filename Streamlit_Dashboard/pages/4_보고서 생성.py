@@ -145,44 +145,44 @@ if not df.empty:
         # === PDF 다운로드 기능: 폰트 선택 드롭다운(직접 경로 지정) ===
         font_options = {
             "강부장님체": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/강부장님체/나눔손글씨 강부장님체.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/강부장님체/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/강부장님체/나눔손글씨 강부장님체.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/강부장님체/thumbnail.png'))
             ),
             "고딕_아니고_고딩": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/고딕_아니고_고딩/나눔손글씨 고딕 아니고 고딩.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/고딕_아니고_고딩/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/고딕_아니고_고딩/나눔손글씨 고딕 아니고 고딩.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/고딕_아니고_고딩/thumbnail.png'))
             ),
             "금은보화": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/금은보화/나눔손글씨 금은보화.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/금은보화/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/금은보화/나눔손글씨 금은보화.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/금은보화/thumbnail.png'))
             ),
             "나눔고딕": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/나눔고딕/NanumGothic.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/나눔고딕/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔고딕/NanumGothic.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔고딕/thumbnail.png'))
             ),
             "나눔바른고딕": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/나눔바른고딕/NanumBarunGothic.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/나눔바른고딕/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔바른고딕/NanumBarunGothic.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔바른고딕/thumbnail.png'))
             ),
             "나눔스퀘어라운드": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/나눔스퀘어라운드/NanumSquareRoundB.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/나눔스퀘어라운드/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔스퀘어라운드/NanumSquareRoundB.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔스퀘어라운드/thumbnail.png'))
             ),
             "대광유리": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/대광유리/나눔손글씨 대광유리.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/대광유리/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/대광유리/나눔손글씨 대광유리.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/대광유리/thumbnail.png'))
             ),
             "마루": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/마루/MaruBuri-Regular.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/마루/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/마루/MaruBuri-Regular.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/마루/thumbnail.png'))
             ),
             "세아체": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/세아체/나눔손글씨 세아체.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/세아체/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/세아체/나눔손글씨 세아체.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/세아체/thumbnail.png'))
             ),
             "예당체": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/예당체/나눔손글씨 예당체.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../../font/예당체/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/예당체/나눔손글씨 예당체.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/예당체/thumbnail.png'))
             ),
         }
         col1, col2 = st.columns([1, 1])
