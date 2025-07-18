@@ -35,6 +35,12 @@ if q is not None:
         except Exception as e:
             print(f"메시지 파싱 오류: {msg} | 오류: {e}")
 
+# 사이드바 내용 추가
+st.sidebar.header("수액 사용 통계 분석")
+st.sidebar.write("각 링거 폴대 별로")
+st.sidebar.write("데이터를 분석합니다.")
+st.sidebar.markdown("---")
+
 # ====== 사이드바에 알림 리스트 출력 ======
 st.sidebar.markdown("### 📋 알림")
 if st.session_state.get('alert_list'):
@@ -52,7 +58,7 @@ if st.session_state.get('alert_list'):
 else:
     st.sidebar.info("새로운 알림이 없습니다.")
 
-st.title("📈 수액 사용 통계 분석")
+st.title("수액 사용 통계 분석")
 
 # 데이터 불러오기
 @st.cache_data

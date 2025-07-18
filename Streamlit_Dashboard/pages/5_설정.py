@@ -1,7 +1,13 @@
 import streamlit as st
 import json
 
-st.title("⚙️ 설정")
+st.title("설정")
+
+# 사이드바 내용 추가
+st.sidebar.header("설정")
+st.sidebar.write("다양한 설정값들을")
+st.sidebar.write("원하는대로 바꿀 수 있습니다.")
+st.sidebar.markdown("---")
 
 # ====== 사이드바에 알림 리스트 출력 ======
 st.sidebar.markdown("### 📋 알림")

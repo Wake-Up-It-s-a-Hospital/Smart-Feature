@@ -6,10 +6,10 @@ import boto3
 from boto3.dynamodb.conditions import Key
 
 st.set_page_config(layout="wide")
-st.title("🩺 IV Pole 상세 정보")
+st.title("스마트 링거폴대 상세 정보")
 
 # 사이드바 내용 추가
-st.sidebar.header("IV Pole Info")
+st.sidebar.header("스마트 링거폴대 상세 정보")
 st.sidebar.write("각 링거 폴대의 다양한")
 st.sidebar.write("데이터를 확인합니다.")
 st.sidebar.markdown("---")
