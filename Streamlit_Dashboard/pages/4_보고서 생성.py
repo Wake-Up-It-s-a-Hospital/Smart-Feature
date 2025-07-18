@@ -144,46 +144,46 @@ if not df.empty:
         )
         # === PDF 다운로드 기능: 폰트 선택 드롭다운(직접 경로 지정) ===
         font_options = {
-            "강부장님체": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/강부장님체/나눔손글씨 강부장님체.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/강부장님체/thumbnail.png'))
+            "나눔손글씨 강부장님체": (
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/gangbujang/gangbujang.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/gangbujang/thumbnail.png'))
             ),
-            "고딕_아니고_고딩": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/고딕_아니고_고딩/나눔손글씨 고딕 아니고 고딩.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/고딕_아니고_고딩/thumbnail.png'))
+            "나눔손글씨 고딕 아니고 고딩체": (
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/gothing/gothing.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/gothing/thumbnail.png'))
             ),
-            "금은보화": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/금은보화/나눔손글씨 금은보화.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/금은보화/thumbnail.png'))
+            "나눔손글씨 금은보화체": (
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/goldandsilver/goldandsilver.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/goldandsilver/thumbnail.png'))
             ),
             "나눔고딕": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔고딕/NanumGothic.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔고딕/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/nanumgothic/nanumgothic.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/nanumgothic/thumbnail.png'))
             ),
             "나눔바른고딕": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔바른고딕/NanumBarunGothic.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔바른고딕/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/nanumbarun/nanumbarun.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/nanumbarun/thumbnail.png'))
             ),
             "나눔스퀘어라운드": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔스퀘어라운드/NanumSquareRoundB.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/나눔스퀘어라운드/thumbnail.png'))
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/nanumsquare/nanumsquare.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/nanumsquare/thumbnail.png'))
             ),
-            "대광유리": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/대광유리/나눔손글씨 대광유리.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/대광유리/thumbnail.png'))
+            "나눔손글씨 대광유리": (
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/daegwang/daegwang.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/daegwang/thumbnail.png'))
             ),
-            "마루": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/마루/MaruBuri-Regular.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/마루/thumbnail.png'))
+            "마루부리체": (
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/maru/maru.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/maru/thumbnail.png'))
             ),
-            "세아체": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/세아체/나눔손글씨 세아체.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/세아체/thumbnail.png'))
+            "나눔손글씨 세아체": (
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/sea/sea.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/sea/thumbnail.png'))
             ),
-            "예당체": (
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/예당체/나눔손글씨 예당체.ttf')),
-                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/예당체/thumbnail.png'))
-            ),
+            "나눔손글씨 예당체": (
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/yedang/yedang.ttf')),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '../font/yedang/thumbnail.png'))
+            )
         }
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -222,6 +222,27 @@ if not df.empty:
                         pdf.cell(col_width, 8, str(item), border=1)
                     pdf.ln()
                 pdf.ln(5)
+                import matplotlib.pyplot as plt
+                import io
+                from matplotlib import font_manager
+                font_prop = font_manager.FontProperties(fname=selected_font_path)
+                plt.rc('font', family=font_prop.get_name())
+                plt.figure(figsize=(8, 4))
+                ax = stats_df[['평균', '최소', '최대', '총합']].plot(kind='bar')
+                plt.title('장비별 통계(평균/최소/최대/총합)', fontproperties=font_prop)
+                plt.ylabel('무게', fontproperties=font_prop)
+                plt.yscale('log')
+                plt.tight_layout()
+                ax.legend(prop=font_prop)
+                img_buf = io.BytesIO()
+                plt.savefig(img_buf, format='png')
+                plt.close()
+                img_buf.seek(0)
+                img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                with open(img_path, 'wb') as f:
+                    f.write(img_buf.read())
+                pdf.image(img_path, w=pdf.w - 20)
+                pdf.ln(5)
                 pdf.add_page()
             # 이상치
             if include_outlier and outlier_df is not None and not outlier_df.empty:
@@ -238,12 +259,50 @@ if not df.empty:
                         pdf.cell(col_width, 7, str(item), border=1)
                     pdf.ln()
                 pdf.ln(5)
+                # 1. 시간-이상치(diff) scatter plot
+                import matplotlib.pyplot as plt
+                import io
+                from matplotlib import font_manager
+                font_prop = font_manager.FontProperties(fname=selected_font_path)
+                plt.rc('font', family=font_prop.get_name())
+                plt.figure(figsize=(8, 4))
+                plt.scatter(pd.to_datetime(outlier_df['timestamp']), outlier_df['diff'], c='red', s=20)
+                plt.title('이상치 변화량(시간-차이)', fontproperties=font_prop)
+                plt.xlabel('시간', fontproperties=font_prop)
+                plt.ylabel('diff', fontproperties=font_prop)
+                plt.tight_layout()
+                img_buf = io.BytesIO()
+                plt.savefig(img_buf, format='png')
+                plt.close()
+                img_buf.seek(0)
+                img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                with open(img_path, 'wb') as f:
+                    f.write(img_buf.read())
+                pdf.image(img_path, w=pdf.w - 20)
+                pdf.ln(5)
+                # 2. 날짜별 이상치 개수 bar plot
+                outlier_df['date'] = pd.to_datetime(outlier_df['timestamp']).dt.date
+                date_counts = outlier_df.groupby('date').size()
+                plt.figure(figsize=(8, 4))
+                date_counts.plot(kind='bar', color='orange')
+                plt.title('날짜별 이상치 개수', fontproperties=font_prop)
+                plt.xlabel('날짜', fontproperties=font_prop)
+                plt.ylabel('이상치 개수', fontproperties=font_prop)
+                plt.tight_layout()
+                img_buf2 = io.BytesIO()
+                plt.savefig(img_buf2, format='png')
+                plt.close()
+                img_buf2.seek(0)
+                img_path2 = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                with open(img_path2, 'wb') as f:
+                    f.write(img_buf2.read())
+                pdf.image(img_path2, w=pdf.w - 20)
+                pdf.ln(5)
                 pdf.add_page()
             # 그래프
             if include_graph and graph_fig is not None:
                 pdf.set_font(font_name, '', 14)
                 pdf.cell(0, 10, '무게 변화 그래프', ln=True)
-                # plotly figure를 이미지로 변환
                 img_bytes = graph_fig.to_image(format="png")
                 img_stream = io.BytesIO(img_bytes)
                 img = Image.open(img_stream)
@@ -286,17 +345,9 @@ if not df.empty:
                     include_graph=include_graph,
                     graph_fig=graph_fig
                 )).read(),
-                file_name=f"{selected_period} Smart IV Pole Report.pdf",
+                file_name=f"{selected_period} 환자 추종 스마트 링거폴대 보고서.pdf",
                 mime="application/pdf"
             ):
                 pass
 else:
     st.warning("아직 기록된 데이터가 없습니다.")
-
-# loadcell_history 사용 시 예시 (필요한 곳에 아래와 같이 사용)
-# history = loadcell_history.get(loadcel_id, [])
-# tuple_history = [h for h in history if isinstance(h, tuple) and len(h) == 2]
-# if tuple_history:
-#     timestamps = [h[0] for h in tuple_history]
-#     weights = [h[1] for h in tuple_history]
-#     ...
