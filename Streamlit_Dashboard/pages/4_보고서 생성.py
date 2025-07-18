@@ -40,6 +40,12 @@ if q is not None:
         except Exception as e:
             print(f"메시지 파싱 오류: {msg} | 오류: {e}")
 
+# 사이드바 내용 추가
+st.sidebar.header("보고서 생성")
+st.sidebar.write("수집 및 분석된 데이터로")
+st.sidebar.write("보고서를 생성합니다.")
+st.sidebar.markdown("---")
+
 # ====== 사이드바에 알림 리스트 출력 ======
 st.sidebar.markdown("### 📋 알림")
 if st.session_state.get('alert_list'):
@@ -71,7 +77,7 @@ def get_history_df():
         df['timestamp'] = pd.to_datetime(df['timestamp'])
     return df
 
-st.title("📄 보고서 생성")
+st.title("보고서 생성")
 
 df = get_history_df()
 

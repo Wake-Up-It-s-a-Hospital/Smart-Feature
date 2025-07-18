@@ -18,7 +18,7 @@ st.set_page_config(layout="wide")
 st_autorefresh(interval=1000, key="datarefresh")
 
 # 사이드바 내용 추가
-st.sidebar.header("Overview")
+st.sidebar.header("실시간 대시보드")
 st.sidebar.write("수액의 현재 무게와")
 st.sidebar.write("남은 시간을 확인합니다.")
 st.sidebar.markdown("---")
@@ -41,7 +41,7 @@ else:
     st.sidebar.info("새로운 알림이 없습니다.")
 
 # --- UI 표시 ---
-st.title("📊 전체 현황 대시보드")
+st.title("실시간 대시보드")
 
 # 메인 페이지에서 이미 초기화된 session_state 데이터 사용
 loadcell_data = st.session_state.get('loadcell_data', {})
