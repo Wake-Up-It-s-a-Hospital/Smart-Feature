@@ -37,14 +37,16 @@ async def broadcast_data():
             for item in items:
                 loadcel_id = item.get('loadcel', {}).get('S')
                 current_weight = item.get('current_weight', {}).get('S')
+                nurse_call = item.get('nurse_call', {}).get('BOOL')
                 remaining_sec = item.get('remaining_sec', {}).get('S')
                 timestamp = item.get('timestamp', {}).get('S')
                 # 디버그용 출력
-                print(f"[DynamoDB 폴링] id: {loadcel_id}, 무게: {current_weight}, 남은 시간: {remaining_sec}, 시간: {timestamp}")
+                print(f"[DynamoDB 폴링] id: {loadcel_id}, 무게: {current_weight}, 너스콜 여부: {nurse_call}, 남은 시간: {remaining_sec}, 시간: {timestamp}")
                 if loadcel_id and current_weight is not None and remaining_sec is not None and timestamp is not None:
                     data_to_send = {
                         "loadcel": loadcel_id,
                         "current_weight": current_weight,
+                        "nurse_call": nurse_call,
                         "remaining_sec": remaining_sec,
                         "timestamp": timestamp
                     }

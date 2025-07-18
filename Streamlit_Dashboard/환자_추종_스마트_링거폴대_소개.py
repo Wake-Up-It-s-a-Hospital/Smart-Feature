@@ -5,6 +5,7 @@ import websocket
 import time
 import json
 from streamlit_autorefresh import st_autorefresh
+from utils.alert_utils import render_alert_sidebar
 
 # 페이지 설정
 st.set_page_config(
@@ -452,21 +453,7 @@ with st.container():
     """, unsafe_allow_html=True)
 
 # ====== 사이드바에 알림 리스트 출력 ======
-st.sidebar.markdown("### 📋 알림")
-if st.session_state.get('alert_list'):
-    for alert in st.session_state['alert_list']:
-        if alert["id"] == 1:
-            st.sidebar.success(alert["msg"])
-        elif alert["id"] == 2:
-            st.sidebar.warning(alert["msg"])
-        elif alert["id"] == 3:
-            st.sidebar.error(alert["msg"])
-        elif alert["id"] == 4:
-            st.sidebar.error(alert["msg"])
-        else:
-            st.sidebar.info(alert["msg"])
-else:
-    st.sidebar.info("새로운 알림이 없습니다.")
+render_alert_sidebar()
 
 
 if __name__ == "__main__":

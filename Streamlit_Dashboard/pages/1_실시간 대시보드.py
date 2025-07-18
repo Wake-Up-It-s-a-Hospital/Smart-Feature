@@ -9,6 +9,7 @@ import boto3
 import os
 from datetime import datetime, timezone, timedelta
 import threading
+from utils.alert_utils import render_alert_sidebar
 
 KST = timezone(timedelta(hours=9))
 
@@ -24,25 +25,7 @@ st.sidebar.write("남은 시간을 확인합니다.")
 st.sidebar.markdown("---")
 
 # ====== 사이드바에 알림 리스트 출력 ======
-st.sidebar.markdown("### 📋 알림")
-if st.session_state.get('alert_list'):
-    for alert in st.session_state['alert_list']:
-        # === [수정] full_weight가 None이 아닐 때만 알림 표시 ===
-        loadcel_id = alert.get('loadcel_id', '1')
-        full_weight = st.session_state.get(f'full_weight_{loadcel_id}', None)
-        if full_weight is not None:
-            if alert["id"] == 1:
-                st.sidebar.success(alert["msg"])
-            elif alert["id"] == 2:
-                st.sidebar.warning(alert["msg"])
-            elif alert["id"] == 3:
-                st.sidebar.error(alert["msg"])
-            elif alert["id"] == 4:
-                st.sidebar.error(alert["msg"])
-            else:
-                st.sidebar.info(alert["msg"])
-else:
-    st.sidebar.info("새로운 알림이 없습니다.")
+render_alert_sidebar()
 
 # --- UI 표시 ---
 st.title("실시간 대시보드")
@@ -85,6 +68,19 @@ if q is not None:
             data = json.loads(msg)
             loadcel = data.get("loadcel")
             timestamp = data.get("timestamp")
+            # === nurse_call 알림 추가 ===
+            if data.get("nurse_call", False):
+                if 'alert_list' not in st.session_state:
+                    st.session_state['alert_list'] = []
+                # 중복 방지: 같은 loadcel, nurse_call 알림이 이미 최근에 있으면 추가하지 않음
+                recent_nurse_alerts = [a for a in st.session_state['alert_list'][-10:] if a.get('nurse_call') and a.get('loadcel_id') == loadcel]
+                if not recent_nurse_alerts:
+                    st.session_state['alert_list'].append({
+                        "id": 3,
+                        "msg": f"🚨 로드셀 {loadcel}에서 간호사 호출이 발생했습니다!",
+                        "loadcel_id": loadcel,
+                        "nurse_call": True
+                    })
             if loadcel:
                 try:
                     current_weight = float(data.get("current_weight", 0))
