@@ -196,7 +196,7 @@ with st.container():
 
     .section1 {
         background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
-                    url('https://i.imgur.com/wVwCjnr.jpeg') no-repeat;
+                    url('https://i.imgur.com/WDcZVTB.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
         background-position: center;
@@ -204,7 +204,7 @@ with st.container():
 
     .section2 {
         background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
-                    url('https://i.imgur.com/cW4y4s3.jpeg') no-repeat;
+                    url('https://i.imgur.com/f39Lij3.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
         background-position: center;
@@ -212,7 +212,7 @@ with st.container():
 
     .section3 {
         background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
-                    url('https://i.imgur.com/iUenTpM.jpeg') no-repeat;
+                    url('https://i.imgur.com/I1KZGj4.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
         background-position: center;
@@ -220,7 +220,7 @@ with st.container():
 
     .section4 {
         background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
-                    url('https://i.imgur.com/c5tnILg.jpeg') no-repeat;
+                    url('https://i.imgur.com/9lU4jYP.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
         background-position: center;
@@ -358,16 +358,19 @@ with st.container():
         <div class='section-content'>
             <h2 class='section-header'>우리의 솔루션: 실시간 수액 모니터링</h2>
             <p class='section-text'>
-            Smart IV Pole Dashboard는 IV Pole에 설치된 로드셀을 통해 수액 무게를 실시간으로 측정하고, <br>
-            남은 시간을 정확히 계산하여 의료진에게 사전 알림을 제공합니다.
+            Smart IV Pole Dashboard는 IV Pole에 설치된 고정밀 로드셀 센서를 통해 수액 무게를 실시간으로 측정하고,<br>
+            AI 기반 알고리즘으로 남은 투여 시간을 예측하여, 의료진에게 사전 경고 및 다양한 자동 알림을 제공합니다.<br>
+            이를 통해 환자 안전을 극대화하고, 의료진의 업무 효율성을 혁신적으로 향상시킵니다.
             </p>
             <ul class='section-text'>
-                <li class='feature-point'><b>🔍 실시간 무게 측정:</b> 로드셀 센서가 수액 무게를 지속적으로 측정하여 정확한 잔량 파악.</li>
-                <li class='feature-point'><b>⏰ 예측 알림 시스템:</b> 수액 고갈 전 미리 알림을 통해 의료진의 대응 시간 확보.</li>
-                <li class='feature-point'><b>📊 직관적인 대시보드:</b> 모든 IV Pole의 상태를 한눈에 파악할 수 있는 실시간 대시보드.</li>
-                <li class='feature-point'><b>⚡ 웹소켓 기반 실시간 통신:</b> 지연 없는 실시간 데이터 전송으로 즉각적인 상태 업데이트.</li>
-                <li class='feature-point'><b>📈 실시간 그래프:</b> 수액 무게 변화를 시각적으로 확인할 수 있는 인터랙티브 차트.</li>
-                <li class='feature-point'><b>🚨 긴급 알림:</b> 수액 잔량이 임계값 이하로 떨어질 때 즉시 경고 알림.</li>
+                <li class='feature-point'><b>실시간 무게 측정:</b> 고정밀 로드셀 센서가 수액 무게를 초 단위로 지속적으로 측정하여, 잔량 변화를 즉시 파악합니다.</li>
+                <li class='feature-point'><b>AI 예측 및 자동 알림:</b> AI 기반 예측 알고리즘이 수액 소진 예상 시간을 계산하고, 고갈 전 미리 의료진에게 자동으로 알림을 전송합니다.</li>
+                <li class='feature-point'><b>다중 임계값 경고:</b> 잔량이 임계값 이하로 떨어질 때 단계별(거의 소진/완전 소진)로 맞춤형 경고 알림을 제공합니다.</li>
+                <li class='feature-point'><b>직관적인 대시보드:</b> 모든 IV Pole의 상태와 수액 잔량, 남은 시간을 한눈에 확인할 수 있는 실시간 대시보드를 제공합니다.</li>
+                <li class='feature-point'><b>웹소켓 기반 실시간 통신:</b> 지연 없는 실시간 데이터 전송으로 즉각적인 상태 업데이트와 빠른 의사결정을 지원합니다.</li>
+                <li class='feature-point'><b>실시간 그래프 및 이력 관리:</b> 수액 무게 변화 추이를 시각적으로 확인할 수 있는 인터랙티브 차트와 히스토리 기능을 제공합니다.</li>
+                <li class='feature-point'><b>환자 안전 강화:</b> 수액 고갈로 인한 의료 사고를 예방하고, 환자 안전을 최우선으로 보장합니다.</li>
+                <li class='feature-point'><b>의료진 업무 효율화:</b> 반복적인 수액 확인 업무를 자동화하여, 의료진이 더 중요한 업무에 집중할 수 있도록 돕습니다.</li>
             </ul>
         </div>
     </div>
@@ -383,13 +386,13 @@ with st.container():
             안정적이고 확장 가능한 모니터링 시스템을 구축했습니다.
             </p>
             <ul class='section-text'>
-                <li class='feature-point'><b>🖥️ 하드웨어:</b> 로드셀 센서, 마이크로컨트롤러, 모터 제어 시스템</li>
-                <li class='feature-point'><b>☁️ AWS DynamoDB:</b> 안정적인 클라우드 데이터베이스로 센서 데이터 저장 및 관리</li>
-                <li class='feature-point'><b>🌐 Streamlit 프레임워크:</b> 빠르고 효율적인 웹 대시보드 구축 및 데이터 시각화</li>
-                <li class='feature-point'><b>🔌 WebSocket 통신:</b> 실시간 양방향 통신으로 지연 없는 데이터 전송</li>
-                <li class='feature-point'><b>📊 Plotly 라이브러리:</b> 인터랙티브하고 미려한 실시간 그래프 및 차트 제공</li>
-                <li class='feature-point'><b>🤖 환자 인식:</b> 허스키렌즈를 활용한 환자 인식 및 거리 측정 시스템</li>
-                <li class='feature-point'><b>📏 UWB 기술:</b> 초정밀 거리 측정으로 환자와 IV Pole 간 거리 모니터링</li>
+                <li class='feature-point'><b>하드웨어:</b> 로드셀 센서, 마이크로컨트롤러, 모터 제어 시스템</li>
+                <li class='feature-point'><b>AWS DynamoDB:</b> 안정적인 클라우드 데이터베이스로 센서 데이터 저장 및 관리</li>
+                <li class='feature-point'><b>Streamlit 프레임워크:</b> 빠르고 효율적인 웹 대시보드 구축 및 데이터 시각화</li>
+                <li class='feature-point'><b>WebSocket 통신:</b> 실시간 양방향 통신으로 지연 없는 데이터 전송</li>
+                <li class='feature-point'><b>Plotly 라이브러리:</b> 인터랙티브하고 미려한 실시간 그래프 및 차트 제공</li>
+                <li class='feature-point'><b>환자 인식:</b> 허스키렌즈를 활용한 환자 인식 및 거리 측정 시스템</li>
+                <li class='feature-point'><b>UWB 기술:</b> 초정밀 거리 측정으로 환자와 IV Pole 간 거리 모니터링</li>
             </ul>
         </div>
     </div>
@@ -404,12 +407,12 @@ with st.container():
             우리의 시스템은 단순한 모니터링을 넘어, 실제 의료 현장의 안전성을 향상시킵니다.
             </p>
             <ul class='section-text'>
-                <li class='feature-point'><b>🛡️ 환자 안전 향상:</b> 수액 고갈로 인한 의료 사고 방지 및 환자 안전 보장</li>
-                <li class='feature-point'><b>⚡ 의료진 업무 효율성:</b> 수동 확인 작업 감소로 더 중요한 의료 업무에 집중 가능</li>
-                <li class='feature-point'><b>🌙 24시간 모니터링:</b> 야간 근무 시에도 안정적인 수액 상태 감시</li>
-                <li class='feature-point'><b>📊 데이터 기반 의사결정:</b> 수액 사용 패턴 분석을 통한 효율적인 자원 관리</li>
-                <li class='feature-point'><b>🎯 정확한 예측:</b> AI 기반 알고리즘으로 수액 소진 시간을 정확히 예측</li>
-                <li class='feature-point'><b>🔔 스마트 알림:</b> 상황별 맞춤형 알림으로 의료진의 신속한 대응 지원</li>
+                <li class='feature-point'><b>환자 안전 향상:</b> 수액 고갈로 인한 의료 사고 방지 및 환자 안전 보장</li>
+                <li class='feature-point'><b>의료진 업무 효율성:</b> 수동 확인 작업 감소로 더 중요한 의료 업무에 집중 가능</li>
+                <li class='feature-point'><b>24시간 모니터링:</b> 야간 근무 시에도 안정적인 수액 상태 감시</li>
+                <li class='feature-point'><b>데이터 기반 의사결정:</b> 수액 사용 패턴 분석을 통한 효율적인 자원 관리</li>
+                <li class='feature-point'><b>정확한 예측:</b> AI 기반 알고리즘으로 수액 소진 시간을 정확히 예측</li>
+                <li class='feature-point'><b>스마트 알림:</b> 상황별 맞춤형 알림으로 의료진의 신속한 대응 지원</li>
             </ul>
         </div>
     </div>
