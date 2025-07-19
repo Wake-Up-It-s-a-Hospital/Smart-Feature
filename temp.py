@@ -4,7 +4,7 @@ import os
 def has_valid_files(path):
     for root, dirs, files in os.walk(path):
         for f in files:
-            if f.endswith(('.jsx', '.html', '.css')):
+            if f.endswith(('.jsx', '.html', '.css', '.py', '.c', '.cpp', '.h')):
                 return True
     return False
 
@@ -13,13 +13,15 @@ def print_filtered_tree(path, prefix=''):
     entries = sorted([
         f for f in os.listdir(path)
         if not f.startswith('.') and (
-            os.path.isdir(os.path.join(path, f)) or f.endswith(('.jsx', '.html', '.css', '.js'))
+            os.path.isdir(os.path.join(path, f)) or f.endswith(('.jsx', '.html', '.css', '.py', '.c', '.cpp', '.h'))
         )
     ])
 
     # 유효한 항목만 필터링 (비어있는 폴더 제외)
     filtered_entries = []
     for f in entries:
+        if f == os.path.basename(__file__):  # 자기 자신 제외
+            continue
         full_path = os.path.join(path, f)
         if os.path.isdir(full_path):
             if has_valid_files(full_path):
@@ -38,5 +40,5 @@ def print_filtered_tree(path, prefix=''):
             print_filtered_tree(full_path, prefix + extension)
 
 # 사용 예시
-print("Dashboard/")
-print_filtered_tree("Dashboard")
+print("Smart-Feature/")
+print_filtered_tree("C:\YS\TUK\Capstone\Smart IV pole\github_clone\Smart-Feature")

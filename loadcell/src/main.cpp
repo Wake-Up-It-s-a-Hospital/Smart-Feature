@@ -16,7 +16,7 @@ void sendCommand(const String& cmd) {
   Serial2.write(0xFF);
   Serial2.write(0xFF);
 }
-int simple_remaining_sec = 0;
+float simple_remaining_sec = 0;
 
 // ===== 하이브리드 필터 클래스 =====
 class HybridFilter {
@@ -335,7 +335,7 @@ void process_loadcell_data(
     }
 
     // === 오버뷰 방식의 단순 남은 시간 계산 ===
-    float simple_remaining_sec = (current_weight > 0) ? (current_weight / 250.0f) * 3600.0f : -1;
+    simple_remaining_sec = (current_weight > 0) ? (current_weight / 250.0f) * 3600.0f : -1;
 
     // // 기존 회귀 기반 예측 코드 (주석처리)
     // if (abs(slope_estimate) < 0.001) {
@@ -495,6 +495,9 @@ void loop() {
             nurse_blink_count = 0;
             nurse_blink_state = false;
             
+            // 처음에 텍스트를 검은색으로 설정하여 보이게 함
+            sendCommand("t_nurse.pco=0");
+            
             // nurse_call 상태 설정 (5분간 유지)
             nurse_call_status = true;
             nurse_call_start_time = millis();
@@ -518,8 +521,8 @@ void loop() {
       nurse_blink_start = currentTime;
       nurse_blink_count++;
       
-      // pco 값 설정 (0 또는 65535)
-      int pco_value = nurse_blink_state ? 65535 : 0;
+      // pco 값 설정 (검은색 또는 하얀색)
+      int pco_value = nurse_blink_state ? 0 : 65535;  // 검은색 ↔ 하얀색 전환
       sendCommand("t_nurse.pco=" + String(pco_value));
       
       Serial.printf("💡 nurse_call 깜빡임 %d/6 (pco: %d)\n", nurse_blink_count, pco_value);
@@ -527,7 +530,7 @@ void loop() {
       // 6번 깜빡인 후 종료 (3번 깜빡임 = 6번 상태 변경)
       if (nurse_blink_count >= 6) {
         nurse_call_active = false;
-        sendCommand("t_nurse.pco=0");  // 마지막에 꺼진 상태로 유지
+        sendCommand("t_nurse.pco=65535");  // 하얀색으로 만들어서 숨기기
         Serial.println("✅ nurse_call 깜빡임 완료");
       }
     }
@@ -579,9 +582,9 @@ void loop() {
       sendCommand("t_time.txt=\"--:--:--\"");
     }
 
-    // 왼쪽은 비어있음 표시
-    sendCommand("t_wgt_L.txt=\"비어있음\"");
-    sendCommand("t_rem_L.txt=\"--:--\"");
+    // 왼쪽은 비어있음 표시 (사용하지 않음)
+    // sendCommand("t_wgt_L.txt=\"비어있음\"");
+    // sendCommand("t_rem_L.txt=\"--:--\"");
     
     // 오른쪽에만 실제 측정된 무게 표시
     if (current_weight < 0) current_weight = 0;
@@ -607,17 +610,22 @@ void loop() {
     int remMin = (remSecR % 3600) / 60;
     char remRBuf[6];
     sprintf(remRBuf, "%02d:%02d", remHour, remMin);
+    
+    // 디버깅: 남은 시간 계산 확인
+    Serial.printf("🔍 디버깅: simple_remaining_sec=%.1f, remSecR=%d, remHour=%d, remMin=%d, remRBuf='%s'\n", 
+                  simple_remaining_sec, remSecR, remHour, remMin, remRBuf);
+    
     sendCommand("t_rem_R.txt=\"" + String(remRBuf) + "\"");
 
     // 기타 정보 고정 전송
     int battery = 78;
     String espStatus = (WiFi.status() == WL_CONNECTED) ? "신호 연결 양호" : "신호 연결 불량";
-    String typeL = "비어있음", typeR = "수액";
+    // String typeL = "비어있음", typeR = "수액";  // 왼쪽은 사용하지 않음
 
     sendCommand("t_bat.txt=\"" + String(battery) + "%\"");
     sendCommand("t_esp.txt=\"" + espStatus + "\"");
-    sendCommand("t_type_L.txt=\"" + typeL + "\"");
-    sendCommand("t_type_R.txt=\"" + typeR + "\"");
+    // sendCommand("t_type_L.txt=\"" + typeL + "\"");  // 왼쪽은 사용하지 않음
+    // sendCommand("t_type_R.txt=\"\"");
   }
 
   delay(delay_interval);
