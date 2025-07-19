@@ -199,7 +199,7 @@ with st.container():
     }
 
     .section1 {
-        background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+        background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.9)),
                     url('https://i.imgur.com/WDcZVTB.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
@@ -207,7 +207,7 @@ with st.container():
     }
 
     .section2 {
-        background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+        background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.9)),
                     url('https://i.imgur.com/f39Lij3.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
@@ -215,7 +215,7 @@ with st.container():
     }
 
     .section3 {
-        background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+        background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.9)),
                     url('https://i.imgur.com/I1KZGj4.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
@@ -223,7 +223,7 @@ with st.container():
     }
 
     .section4 {
-        background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+        background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.9)),
                     url('https://i.imgur.com/9lU4jYP.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
@@ -231,7 +231,7 @@ with st.container():
     }
 
     .section5 {
-        background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+        background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.9)),
                     url('https://i.imgur.com/OHGBO4C.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
@@ -239,7 +239,7 @@ with st.container():
     }
 
     .section6 {
-        background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+        background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.9)),
                     url('https://i.imgur.com/bcps4wK.jpeg') no-repeat;
         background-attachment: fixed;
         background-size: cover;
