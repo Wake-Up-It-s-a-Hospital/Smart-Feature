@@ -131,7 +131,7 @@ bool nurse_blink_state = false;
 // ===== nurse_call 상태 유지 변수 =====
 bool nurse_call_status = false;
 unsigned long nurse_call_start_time = 0;
-const unsigned long NURSE_CALL_DURATION = 2 * 10 * 1000;  // 5분 (밀리초)
+const unsigned long NURSE_CALL_DURATION = 5 * 60 * 1000;  // 5분 (밀리초)
 
 bool is_running = true;
 
@@ -504,6 +504,8 @@ void loop() {
             
             // DynamoDB에 nurse_call 업로드
             uploadNurseCall();
+            Serial.printf("🔔 nurse_call_status = %s, 시작 시간: %lu\n", 
+                         nurse_call_status ? "true" : "false", nurse_call_start_time);
           }
         }
       }
@@ -541,7 +543,8 @@ void loop() {
     unsigned long currentTime = millis();
     if (currentTime - nurse_call_start_time >= NURSE_CALL_DURATION) {
       nurse_call_status = false;
-      Serial.println("⏰ nurse_call 상태 만료 (5분 경과)");
+      Serial.printf("⏰ nurse_call 상태 만료 (5분 경과), 경과 시간: %lu ms\n", 
+                   currentTime - nurse_call_start_time);
     }
   }
 

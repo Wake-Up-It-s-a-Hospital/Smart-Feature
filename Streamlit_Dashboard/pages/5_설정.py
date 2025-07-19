@@ -53,19 +53,21 @@ with col2:
 with col3:
     st.session_state['alert_enabled_nursecall'] = st.checkbox("너스콜 알림", value=st.session_state['alert_enabled_nursecall'])
 
-# === 알림 임계값 설정 ===
+# === 알림 임계값 설정 (비율 기반) ===
 st.subheader("알림 임계값 설정")
 if st.session_state['alert_enabled_almost']:
-    if 'alert_almost_weight' not in st.session_state:
-        st.session_state['alert_almost_weight'] = 300
-    st.session_state['alert_almost_weight'] = st.slider("거의 다 됨 알림 기준 (g)", 100, 500, st.session_state['alert_almost_weight'], 10)
+    if 'alert_almost_ratio' not in st.session_state:
+        st.session_state['alert_almost_ratio'] = 30
+    st.session_state['alert_almost_ratio'] = st.slider("거의 다 됨 알림 기준 (%)", 10, 50, st.session_state['alert_almost_ratio'], 5)
+    st.info(f"꽉 찬 수액팩 무게의 {st.session_state['alert_almost_ratio']}% 이하일 때 알림이 발생합니다.")
 if st.session_state['alert_enabled_done']:
-    if 'alert_done_weight' not in st.session_state:
-        st.session_state['alert_done_weight'] = 150
-    st.session_state['alert_done_weight'] = st.slider("투여 완료 알림 기준 (g)", 100, 500, st.session_state['alert_done_weight'], 10)
+    if 'alert_done_ratio' not in st.session_state:
+        st.session_state['alert_done_ratio'] = 10
+    st.session_state['alert_done_ratio'] = st.slider("투여 완료 알림 기준 (%)", 5, 20, st.session_state['alert_done_ratio'], 1)
+    st.info(f"꽉 찬 수액팩 무게의 {st.session_state['alert_done_ratio']}% 이하일 때 알림이 발생합니다.")
 
 # === 기타 시스템 정보/버전 ===
 st.markdown("---")
 st.subheader("시스템 정보")
-st.markdown("- 버전: v1.3.8")
-st.markdown("- 최근 업데이트: 2025-07-18")
+st.markdown("- 버전: v1.4.2")
+st.markdown("- 최근 업데이트: 2025-07-19")

@@ -10,7 +10,8 @@ clients = set()
 # DynamoDB 설정
 TABLE_NAME = os.environ.get("DYNAMODB_TABLE", "loadcell")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
-POLL_INTERVAL_SECONDS = 60
+POLL_INTERVAL_SECONDS = 1  # 데이터 읽기: 1초마다
+UPLOAD_INTERVAL_SECONDS = 60  # 히스토리 업로드: 60초마다
 
 dynamodb_client = boto3.client('dynamodb', region_name=AWS_REGION)
 # loadcell_history 테이블 리소스
@@ -30,18 +31,24 @@ def upload_history(loadcel, current_weight, remaining_sec, timestamp):
     print(f"[히스토리 업로드] {item}")
 
 async def broadcast_data():
+    last_upload_time = 0  # 마지막 업로드 시간 추적
+    
     while True:
         try:
+            current_time = time.time()
             response = dynamodb_client.scan(TableName=TABLE_NAME)
             items = response.get('Items', [])
+            
             for item in items:
                 loadcel_id = item.get('loadcel', {}).get('S')
                 current_weight = item.get('current_weight', {}).get('S')
                 nurse_call = item.get('nurse_call', {}).get('BOOL')
                 remaining_sec = item.get('remaining_sec', {}).get('S')
                 timestamp = item.get('timestamp', {}).get('S')
+                
                 # 디버그용 출력
                 print(f"[DynamoDB 폴링] id: {loadcel_id}, 무게: {current_weight}, 너스콜 여부: {nurse_call}, 남은 시간: {remaining_sec}, 시간: {timestamp}")
+                
                 if loadcel_id and current_weight is not None and remaining_sec is not None and timestamp is not None:
                     data_to_send = {
                         "loadcel": loadcel_id,
@@ -50,14 +57,20 @@ async def broadcast_data():
                         "remaining_sec": remaining_sec,
                         "timestamp": timestamp
                     }
-                    # 연결된 모든 클라이언트에게 전송
+                    
+                    # 연결된 모든 클라이언트에게 전송 (1초마다)
                     if clients:
                         await asyncio.gather(*[client.send(json.dumps(data_to_send)) for client in clients])
-                    # loadcell_history 테이블에 업로드
-                    upload_history(loadcel_id, current_weight, remaining_sec, timestamp)
-                    print(f"[히스토리 업로드] {item}")
+                    
+                    # loadcell_history 테이블에 업로드 (60초마다)
+                    if current_time - last_upload_time >= UPLOAD_INTERVAL_SECONDS:
+                        upload_history(loadcel_id, current_weight, remaining_sec, timestamp)
+                        print(f"[히스토리 업로드] {item}")
+                        last_upload_time = current_time
+                        
         except Exception as e:
             print(f"DynamoDB 폴링/브로드캐스트 오류: {e}")
+        
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
 
 async def handler(websocket, path=None):

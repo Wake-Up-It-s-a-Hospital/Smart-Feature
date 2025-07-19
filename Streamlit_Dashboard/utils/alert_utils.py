@@ -1,7 +1,17 @@
 import streamlit as st
 
 def render_alert_sidebar():
-    st.sidebar.markdown("### 📋 알림")
+    # 알림 헤더와 모두 지우기 버튼
+    col1, col2 = st.sidebar.columns([6, 4])
+    with col1:
+        st.markdown("### 📋 알림")
+    with col2:
+        if st.session_state.get('alert_list') and len(st.session_state['alert_list']) > 3:
+            if st.button("모두 지우기", key="clear_all_alerts"):
+                st.session_state['alert_list'] = []
+                st.session_state['alert_flags'] = set()
+                st.rerun()
+    
     if st.session_state.get('alert_list'):
         if 'alert_remove_idx' not in st.session_state:
             st.session_state['alert_remove_idx'] = None

@@ -115,6 +115,39 @@ if q is not None:
         except Exception as e:
             print(f"메시지 파싱 오류: {msg} | 오류: {e}")
 
+# ====== 수액 관련 알림 처리 (full_weight 설정 후에만) ======
+def add_alert(alert_id, **params):
+    if 'alert_list' not in st.session_state:
+        st.session_state['alert_list'] = []
+    if 'alert_flags' not in st.session_state:
+        st.session_state['alert_flags'] = set()
+    
+    # 알림 메시지 템플릿
+    templates = {
+        1: "1번 폴대의 오른쪽 수액이 다 되었습니다.",
+        2: "1번 폴대의 오른쪽 수액이 거의 다 되었습니다. (남은 시간: {remaining_min}분, 무게: {current_weight}g)"
+    }
+    
+    if alert_id in templates:
+        msg = templates[alert_id].format(**params)
+        
+        # 중복 방지: 같은 타입의 알림이 이미 최근에 있으면 추가하지 않음
+        recent_alerts = st.session_state['alert_list'][-5:]  # 최근 5개 알림 확인
+        for alert in recent_alerts:
+            if alert.get('id') == alert_id:
+                # 같은 타입의 알림이 이미 있으면 추가하지 않음
+                return
+        
+        st.session_state['alert_list'].append({
+            "id": alert_id,
+            "msg": msg,
+            "params": params
+        })
+        
+        # 알림 리스트가 너무 길어지지 않도록 제한 (최대 20개)
+        if len(st.session_state['alert_list']) > 20:
+            st.session_state['alert_list'] = st.session_state['alert_list'][-20:]
+
 # ====== 로컬 Tare(영점) 기능을 위한 offset 관리 ======
 if 'tare_offsets' not in st.session_state:
     st.session_state['tare_offsets'] = {}
@@ -242,6 +275,25 @@ for loadcel_id in sorted(loadcell_data.keys()):
         col2.metric(label="남은 시간", value=remaining_str)
         col3.metric(label="수액 잔량", value="")
         col3.markdown(indicator_html, unsafe_allow_html=True)
+        
+        # === 수액 관련 알림 처리 (full_weight 설정 후에만) ===
+        if full_weight is not None and full_weight > 0 and display_weight > 0:
+            # 설정된 비율 가져오기 (기본값: 거의 다 됨 30%, 다 됨 10%)
+            almost_ratio = st.session_state.get('alert_almost_ratio', 30) / 100
+            done_ratio = st.session_state.get('alert_done_ratio', 10) / 100
+            
+            # 알림 활성화 상태 확인
+            alert_enabled_almost = st.session_state.get('alert_enabled_almost', True)
+            alert_enabled_done = st.session_state.get('alert_enabled_done', True)
+            
+            # 거의 다 됨 알림 (설정된 비율 이하, 다 됨 비율 초과)
+            if alert_enabled_almost and done_ratio < display_weight / full_weight <= almost_ratio:
+                remaining_min = max(1, int(weight_sec / 60)) if weight_sec > 0 else 1
+                add_alert(2, remaining_min=remaining_min, current_weight=display_weight)
+            # 다 됨 알림 (설정된 비율 이하, 0 초과)
+            elif alert_enabled_done and 0 < display_weight / full_weight <= done_ratio:
+                add_alert(1)
+        
         # plotly 그래프 추가 (history가 1개 이상일 때만)
         history = loadcell_history.get(loadcel_id, [])
         tuple_history = [h for h in history if isinstance(h, tuple) and len(h) == 2]
