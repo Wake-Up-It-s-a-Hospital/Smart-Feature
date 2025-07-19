@@ -645,52 +645,39 @@ if not df.empty:
             stats_df = stats_with_top1.rename(columns={'count': '측정수', 'mean': '평균', 'min': '최소', 'top_1_percent': '최대'}) if include_stats else None
             outlier_df = outlier[['loadcel', 'timestamp', 'current_weight_history', 'diff']] if include_outlier and 'outlier' in locals() and not outlier.empty else None
             
-            # 그래프 생성 코드는 주석처리 (표로 대체)
-            # graph_fig = None
-            # if include_graph:
-            #     import plotly.express as px
-            #     # g를 kg으로 변환
-            #     period_df_kg = period_df.copy()
-            #     period_df_kg['current_weight_history_kg'] = period_df_kg['current_weight_history'] / 1000
-            #     
-            #     # timestamp를 datetime으로 변환
-            #     period_df_kg['timestamp'] = pd.to_datetime(period_df_kg['timestamp'])
-            #     
-            #     graph_fig = px.line(
-            #         period_df_kg,
-            #         x='timestamp',
-            #         y='current_weight_history_kg',
-            #         color='loadcel',
-            #         markers=True,
-            #         color_discrete_sequence=px.colors.qualitative.Set1
-            #     )
-            #     # 그래프 개선: 단위 표기, x축 포맷, xticks 회전
-            #     graph_fig.update_layout(
-            #         yaxis_title="무게 (kg)",
-            #         xaxis_title="시간"
-            #     )
-            #     # x축 시간 포맷 개선 (지수 표현 제거)
-            #     graph_fig.update_xaxes(
-            #         tickformat='%Y-%m-%d %H:%M:%S',
-            #         tickangle=45
-            #     )
-            pdf_file = None
-            if st.download_button(
-                label="PDF로 다운로드",
-                data=(pdf_file := dataframe_to_pdf(
-                    period_df,
-                    title=f"{selected_label} 보고서",
-                    font_path=selected_font_path,
-                    font_name=selected_font_name,
-                    include_stats=include_stats,
-                    stats_df=stats_df,
-                    include_outlier=include_outlier,
-                    outlier_df=outlier_df,
-                    include_graph=include_graph
-                )).read(),
-                file_name=f"{selected_period} 환자 추종 스마트 링거폴대 보고서.pdf",
-                mime="application/pdf"
-            ):
-                pass
+            # === PDF 생성 및 다운로드 (스피너 기반) ===
+            st.write("---")
+            st.subheader("📄 PDF 보고서 생성")
+
+            if 'pdf_bytes' not in st.session_state:
+                st.session_state['pdf_bytes'] = None
+
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("🚀 PDF 생성 및 다운로드", type="primary", use_container_width=True):
+                    with st.spinner("PDF 생성 중..."):
+                        pdf_file = dataframe_to_pdf(
+                            period_df,
+                            title=f"{selected_label} 보고서",
+                            font_path=selected_font_path,
+                            font_name=selected_font_name,
+                            include_stats=include_stats,
+                            stats_df=stats_df,
+                            include_outlier=include_outlier,
+                            outlier_df=outlier_df,
+                            include_graph=include_graph
+                        )
+                        st.session_state['pdf_bytes'] = pdf_file.read()
+                    st.success("✅ PDF 생성이 완료되었습니다! 아래에서 다운로드하세요.")
+
+            if st.session_state['pdf_bytes']:
+                st.download_button(
+                    label="📥 PDF 다운로드",
+                    data=st.session_state['pdf_bytes'],
+                    file_name=f"{selected_period} 환자 추종 스마트 링거폴대 보고서.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+
 else:
     st.warning("아직 기록된 데이터가 없습니다.")
