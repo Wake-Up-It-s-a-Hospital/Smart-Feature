@@ -5,10 +5,12 @@ import json
 import boto3
 from boto3.dynamodb.conditions import Key
 from utils.alert_utils import render_alert_sidebar
+from utils.logo_utils import show_logo
 
 st.set_page_config(layout="wide")
 st.title("스마트 링거폴대 상세 정보")
 
+show_logo()
 # 사이드바 내용 추가
 st.sidebar.header("스마트 링거폴대 상세 정보")
 st.sidebar.write("각 링거 폴대의 다양한")

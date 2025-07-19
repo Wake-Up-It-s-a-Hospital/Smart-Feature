@@ -1,9 +1,11 @@
 import streamlit as st
 import json
 from utils.alert_utils import render_alert_sidebar
+from utils.logo_utils import show_logo
 
 st.title("설정")
 
+show_logo()
 # 사이드바 내용 추가
 st.sidebar.header("설정")
 st.sidebar.write("다양한 설정값들을")
@@ -69,5 +71,5 @@ if st.session_state['alert_enabled_done']:
 # === 기타 시스템 정보/버전 ===
 st.markdown("---")
 st.subheader("시스템 정보")
-st.markdown("- 버전: v1.4.2")
+st.markdown("- 버전: v1.5.7")
 st.markdown("- 최근 업데이트: 2025-07-19")

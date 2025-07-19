@@ -10,6 +10,7 @@ import plotly.io as pio
 from PIL import Image
 import io
 from utils.alert_utils import render_alert_sidebar
+from utils.logo_utils import show_logo
 
 # WebSocket에서 받은 메시지 처리 (main.py와 동일하게)
 q = st.session_state.get("queue", None)
@@ -41,6 +42,7 @@ if q is not None:
         except Exception as e:
             print(f"메시지 파싱 오류: {msg} | 오류: {e}")
 
+show_logo()
 # 사이드바 내용 추가
 st.sidebar.header("보고서 생성")
 st.sidebar.write("수집 및 분석된 데이터로")

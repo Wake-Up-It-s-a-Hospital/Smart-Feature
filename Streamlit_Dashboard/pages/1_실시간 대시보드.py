@@ -10,6 +10,7 @@ import os
 from datetime import datetime, timezone, timedelta
 import threading
 from utils.alert_utils import render_alert_sidebar
+from utils.logo_utils import show_logo
 
 KST = timezone(timedelta(hours=9))
 
@@ -18,6 +19,7 @@ st.set_page_config(layout="wide")
 # 1초마다 자동 새로고침
 st_autorefresh(interval=1000, key="datarefresh")
 
+show_logo()
 # 사이드바 내용 추가
 st.sidebar.header("실시간 대시보드")
 st.sidebar.write("수액의 현재 무게와")

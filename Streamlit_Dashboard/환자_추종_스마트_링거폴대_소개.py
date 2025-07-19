@@ -6,6 +6,8 @@ import time
 import json
 from streamlit_autorefresh import st_autorefresh
 from utils.alert_utils import render_alert_sidebar
+import os
+from utils.logo_utils import show_logo
 
 # 페이지 설정
 st.set_page_config(
@@ -89,6 +91,7 @@ while not q.empty():
     except Exception as e:
         print(f"메시지 파싱 오류: {msg} | 오류: {e}")
 
+show_logo()
 # 사이드바 내용 추가
 st.sidebar.header("Wake Up, It's a Hospital")
 st.sidebar.write("팀장: 김대연")
@@ -454,7 +457,6 @@ with st.container():
 
 # ====== 사이드바에 알림 리스트 출력 ======
 render_alert_sidebar()
-
 
 if __name__ == "__main__":
     pass # Streamlit이 자동으로 실행합니다.
