@@ -1,3 +1,13 @@
 {
-    "cmake.sourceDirectory": "C:/YS/TUK/Capstone/Wake up/Smart-Feature/loadcell"
+    "cmake.sourceDirectory": "C:/YS/TUK/Capstone/Wake up/Smart-Feature/loadcell",
+    "files.associations": {
+        "*.java": "java",
+        "array": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp"
+    }
 }
