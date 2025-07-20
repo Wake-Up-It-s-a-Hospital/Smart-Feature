@@ -30,9 +30,15 @@ if q is not None:
                     remaining_sec = float(data.get("remaining_sec", -1))
                 except:
                     remaining_sec = -1
+                # 배터리 레벨 처리
+                try:
+                    battery_level = int(data.get("battery_level", -1)) if data.get("battery_level") is not None else None
+                except:
+                    battery_level = None
                 st.session_state.loadcell_data[loadcel] = {
                     "current_weight": current_weight,
-                    "remaining_sec": remaining_sec
+                    "remaining_sec": remaining_sec,
+                    "battery_level": battery_level  # 배터리 레벨 추가
                 }
                 if loadcel not in st.session_state.loadcell_history:
                     st.session_state.loadcell_history[loadcel] = []

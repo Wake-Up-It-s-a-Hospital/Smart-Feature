@@ -11,13 +11,14 @@ from datetime import datetime, timezone, timedelta
 import threading
 from utils.alert_utils import render_alert_sidebar, check_all_alerts
 from utils.logo_utils import show_logo
+from boto3.dynamodb.conditions import Key
 
 KST = timezone(timedelta(hours=9))
 
 st.set_page_config(layout="wide")
 
 # 1초마다 자동 새로고침
-st_autorefresh(interval=1000, key="datarefresh")
+st_autorefresh(interval=5000, key="datarefresh")
 
 show_logo()
 # 사이드바 내용 추가
@@ -105,8 +106,14 @@ if q is not None:
                     est_sec = prev_sec
                 st.session_state['weight_sec_calc'][loadcel] = est_sec
                 weight_sec = est_sec
+                # 배터리 레벨 처리
+                try:
+                    battery_level = int(data.get("battery_level", -1)) if data.get("battery_level") is not None else None
+                except:
+                    battery_level = None
                 st.session_state.loadcell_data[loadcel] = {
                     "current_weight": current_weight,
+                    "battery_level": battery_level,  # 배터리 레벨 추가
                     # "weight_sec": weight_sec  # 서버 기반 남은 시간 저장 주석처리
                 }
                 if loadcel not in st.session_state.loadcell_history:
@@ -193,18 +200,20 @@ for loadcel_id in sorted(loadcell_data.keys()):
         continue
     values = loadcell_data[loadcel_id]
     
-    # === 배터리 정보 조회 ===
-    try:
-        response = table_polestat.query(
-            KeyConditionExpression=Key('pole_id').eq(int(loadcel_id)),
-            ScanIndexForward=False,  # 최신순 정렬
-            Limit=1
-        )
-        battery_level = None
-        if response.get('Items'):
-            battery_level = response['Items'][0].get('battery_level', None)
-    except Exception as e:
-        battery_level = None
+    # === 배터리 정보 조회 (웹소켓에서 받은 데이터 우선 사용) ===
+    battery_level = values.get('battery_level', None)
+    if battery_level is None:
+        # 웹소켓에서 받지 못한 경우 DynamoDB에서 조회
+        try:
+            response = table_polestat.query(
+                KeyConditionExpression=Key('pole_id').eq(int(loadcel_id)),
+                ScanIndexForward=False,  # 최신순 정렬
+                Limit=1
+            )
+            if response.get('Items'):
+                battery_level = response['Items'][0].get('battery_level', None)
+        except Exception as e:
+            battery_level = None
     
     st.write("---")
     st.subheader(f"로드셀 #{loadcel_id}")
@@ -305,6 +314,7 @@ for loadcel_id in sorted(loadcell_data.keys()):
             else:
                 indicator_html += "<div class='indicator-box empty'></div>"
         indicator_html += "</div>"
+        col1, col2, col3, col4 = st.columns(4)
         col1.metric(label="현재 무게", value=f"{display_weight}g")
         # 남은 시간 인디케이터 (무게 기반 계산값만 사용)
         if weight_sec < 0:
@@ -323,14 +333,9 @@ for loadcel_id in sorted(loadcell_data.keys()):
         col2.metric(label="남은 시간", value=remaining_str)
         col3.metric(label="수액 잔량", value="")
         col3.markdown(indicator_html, unsafe_allow_html=True)
-        
-        # === 배터리 표시 추가 ===
+        col4.metric("배터리 상태", "")
+        col4.markdown(render_battery_bars(battery_level), unsafe_allow_html=True)
         st.write("---")
-        col_bat1, col_bat2 = st.columns(2)
-        col_bat1.metric("배터리 상태", "")
-        col_bat1.markdown(render_battery_bars(battery_level), unsafe_allow_html=True)
-        
-
         
         # plotly 그래프 추가 (history가 1개 이상일 때만)
         history = loadcell_history.get(loadcel_id, [])

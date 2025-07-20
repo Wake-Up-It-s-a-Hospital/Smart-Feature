@@ -17,7 +17,7 @@ st.set_page_config(
 )
 
 # 1초마다 자동 새로고침
-st_autorefresh(interval=1000, key="main_refresh")
+# st_autorefresh(interval=5000, key="main_refresh")
 
 # --- WebSocket 초기화 (백그라운드에서 실행) ---
 def ws_listener(q):
@@ -75,13 +75,19 @@ while not q.empty():
                 remaining_sec = float(data.get("remaining_sec", -1))
             except:
                 remaining_sec = -1
+            # 배터리 레벨 처리
+            try:
+                battery_level = int(data.get("battery_level", -1)) if data.get("battery_level") is not None else None
+            except:
+                battery_level = None
             # 데이터를 세션 상태에 저장 (다른 페이지에서 사용)
             st.session_state.loadcell_data[loadcel] = {
                 "current_weight": current_weight,
-                "remaining_sec": remaining_sec
+                "remaining_sec": remaining_sec,
+                "battery_level": battery_level  # 배터리 레벨 추가
             }
             # 디버그용 출력
-            print(f"[로드셀 데이터] id: {loadcel}, 무게: {current_weight}, 남은 시간: {remaining_sec}")
+            print(f"[로드셀 데이터] id: {loadcel}, 무게: {current_weight}, 배터리: {battery_level}, 남은 시간: {remaining_sec}")
             # 무게 히스토리 저장 (최대 30개)
             if loadcel not in st.session_state.loadcell_history:
                 st.session_state.loadcell_history[loadcel] = []
@@ -98,46 +104,46 @@ st.sidebar.write("팀장: 김대연")
 st.sidebar.write("조원: 김윤성, 최황은, 최훈석")
 st.sidebar.markdown("---")
 
-# === 사이드바에 배터리 상태 표시 ===
-st.sidebar.subheader("📱 배터리 상태")
-try:
-    import boto3
-    from boto3.dynamodb.conditions import Key
-    dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')
-    table_polestat = dynamodb.Table('pole_stat')
+# # === 사이드바에 배터리 상태 표시 ===
+# st.sidebar.subheader("📱 배터리 상태")
+# try:
+#     import boto3
+#     from boto3.dynamodb.conditions import Key
+#     dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')
+#     table_polestat = dynamodb.Table('pole_stat')
     
-    response = table_polestat.query(
-        KeyConditionExpression=Key('pole_id').eq(1),
-        ScanIndexForward=False,
-        Limit=1
-    )
+#     response = table_polestat.query(
+#         KeyConditionExpression=Key('pole_id').eq(1),
+#         ScanIndexForward=False,
+#         Limit=1
+#     )
     
-    if response.get('Items'):
-        battery_level = response['Items'][0].get('battery_level', None)
-        if battery_level is not None:
-            # 배터리 레벨에 따른 이모지와 텍스트
-            if battery_level == 3:
-                battery_emoji = "🔋"
-                battery_text = "배터리 양호"
-            elif battery_level == 2:
-                battery_emoji = "🔋"
-                battery_text = "배터리 보통"
-            elif battery_level == 1:
-                battery_emoji = "⚠️"
-                battery_text = "배터리 부족"
-            else:  # battery_level == 0
-                battery_emoji = "🔴"
-                battery_text = "배터리 위험"
+#     if response.get('Items'):
+#         battery_level = response['Items'][0].get('battery_level', None)
+#         if battery_level is not None:
+#             # 배터리 레벨에 따른 이모지와 텍스트
+#             if battery_level == 3:
+#                 battery_emoji = "🔋"
+#                 battery_text = "배터리 양호"
+#             elif battery_level == 2:
+#                 battery_emoji = "🔋"
+#                 battery_text = "배터리 보통"
+#             elif battery_level == 1:
+#                 battery_emoji = "⚠️"
+#                 battery_text = "배터리 부족"
+#             else:  # battery_level == 0
+#                 battery_emoji = "🔴"
+#                 battery_text = "배터리 위험"
             
-            st.sidebar.write(f"{battery_emoji} {battery_text} (Level {battery_level})")
-        else:
-            st.sidebar.write("🔍 배터리 정보 없음")
-    else:
-        st.sidebar.write("🔍 배터리 정보 없음")
-except Exception as e:
-    st.sidebar.write("🔍 배터리 정보 조회 실패")
+#             st.sidebar.write(f"{battery_emoji} {battery_text} (Level {battery_level})")
+#         else:
+#             st.sidebar.write("🔍 배터리 정보 없음")
+#     else:
+#         st.sidebar.write("🔍 배터리 정보 없음")
+# except Exception as e:
+#     st.sidebar.write("🔍 배터리 정보 조회 실패")
 
-st.sidebar.markdown("---")
+# st.sidebar.markdown("---")
 
 # ====== 알림 리스트 초기화 ======
 if "alert_list" not in st.session_state:

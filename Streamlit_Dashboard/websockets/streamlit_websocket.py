@@ -9,6 +9,7 @@ clients = set()
 
 # DynamoDB 설정
 TABLE_NAME = os.environ.get("DYNAMODB_TABLE", "loadcell")
+POLE_STAT_TABLE = os.environ.get("POLE_STAT_TABLE", "pole_stat")  # 배터리 데이터 테이블
 AWS_REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
 POLL_INTERVAL_SECONDS = 1  # 데이터 읽기: 1초마다
 UPLOAD_INTERVAL_SECONDS = 60  # 히스토리 업로드: 60초마다
@@ -36,6 +37,8 @@ async def broadcast_data():
     while True:
         try:
             current_time = time.time()
+            
+            # 1. loadcell 테이블에서 수액 데이터 가져오기
             response = dynamodb_client.scan(TableName=TABLE_NAME)
             items = response.get('Items', [])
             
@@ -46,13 +49,30 @@ async def broadcast_data():
                 remaining_sec = item.get('remaining_sec', {}).get('S')
                 timestamp = item.get('timestamp', {}).get('S')
                 
+                # 2. pole_stat 테이블에서 배터리 데이터 가져오기
+                battery_level = None
+                try:
+                    pole_response = dynamodb_client.query(
+                        TableName=POLE_STAT_TABLE,
+                        KeyConditionExpression='pole_id = :pole_id',
+                        ExpressionAttributeValues={':pole_id': {'S': str(loadcel_id)}},  # 문자열(S) 타입으로 변경
+                        ScanIndexForward=False,  # 최신순 정렬
+                        Limit=1
+                    )
+                    pole_items = pole_response.get('Items', [])
+                    if pole_items:
+                        battery_level = pole_items[0].get('battery_level', {}).get('N')
+                except Exception as e:
+                    print(f"배터리 데이터 조회 실패 (폴대 {loadcel_id}): {e}")
+                
                 # 디버그용 출력
-                print(f"[DynamoDB 폴링] id: {loadcel_id}, 무게: {current_weight}, 너스콜 여부: {nurse_call}, 남은 시간: {remaining_sec}, 시간: {timestamp}")
+                print(f"[DynamoDB 폴링] id: {loadcel_id}, 무게: {current_weight}, 배터리 레벨: {battery_level}, 너스콜: {nurse_call}, 남은시간: {remaining_sec}")
                 
                 if loadcel_id and current_weight is not None and remaining_sec is not None and timestamp is not None:
                     data_to_send = {
                         "loadcel": loadcel_id,
                         "current_weight": current_weight,
+                        "battery_level": battery_level,  # 배터리 레벨 추가
                         "nurse_call": nurse_call,
                         "remaining_sec": remaining_sec,
                         "timestamp": timestamp

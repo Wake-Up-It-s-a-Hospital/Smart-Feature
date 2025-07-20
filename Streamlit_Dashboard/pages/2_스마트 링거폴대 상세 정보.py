@@ -105,9 +105,15 @@ if q is not None:
                     remaining_sec = (current_weight / 250) * 3600
                 else:
                     remaining_sec = -1
+                # 배터리 레벨 처리
+                try:
+                    battery_level = int(data.get("battery_level", -1)) if data.get("battery_level") is not None else None
+                except:
+                    battery_level = None
                 st.session_state.loadcell_data[loadcel] = {
                     "current_weight": current_weight,
-                    "remaining_sec": remaining_sec
+                    "remaining_sec": remaining_sec,
+                    "battery_level": battery_level  # 배터리 레벨 추가
                 }
                 if loadcel not in st.session_state.loadcell_history:
                     st.session_state.loadcell_history[loadcel] = []
@@ -136,19 +142,20 @@ else:
         st.write("---")
         st.header(f"{selected_device}번 폴대의 상세 정보")
         device_data = loadcell_data[selected_device]
-        # === 배터리 정보 조회 ===
-        # 최신 battery_level을 가져오기 (pole_id == selected_device)
-        try:
-            response = table_polestat.query(
-                KeyConditionExpression=Key('pole_id').eq(int(selected_device)),
-                ScanIndexForward=False,  # 최신순 정렬
-                Limit=1
-            )
-            battery_level = None
-            if response.get('Items'):
-                battery_level = response['Items'][0].get('battery_level', None)
-        except Exception as e:
-            battery_level = None
+        # === 배터리 정보 조회 (웹소켓에서 받은 데이터 우선 사용) ===
+        battery_level = device_data.get('battery_level', None)
+        if battery_level is None:
+            # 웹소켓에서 받지 못한 경우 DynamoDB에서 조회
+            try:
+                response = table_polestat.query(
+                    KeyConditionExpression=Key('pole_id').eq(int(selected_device)),
+                    ScanIndexForward=False,  # 최신순 정렬
+                    Limit=1
+                )
+                if response.get('Items'):
+                    battery_level = response['Items'][0].get('battery_level', None)
+            except Exception as e:
+                battery_level = None
         # === 표시용 무게 계산 ===
         display_weight = device_data.get('current_weight', 0)
         display_weight = max(0, round(display_weight, 1))

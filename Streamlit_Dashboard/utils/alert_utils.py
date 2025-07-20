@@ -73,6 +73,9 @@ def add_alert(alert_id, **params):
 # ====== 배터리 상태 체크 및 알림 함수 ======
 def check_battery_alerts():
     """모든 폴대의 배터리 상태를 체크하고 알림을 생성하는 함수"""
+    # 설정에서 배터리 알림이 꺼져 있으면 아무것도 하지 않음
+    if not st.session_state.get('alert_enabled_battery', True):
+        return
     try:
         dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')
         table_polestat = dynamodb.Table('pole_stat')
@@ -116,19 +119,22 @@ def check_infusion_alerts():
         almost_weight = st.session_state.get(almost_key, 300)
         done_weight = st.session_state.get(done_key, 150)
         
-        # 투여 거의 완료 (무게만으로 판단)
-        if (0 < data.get("current_weight", 99999) <= almost_weight):
-            add_alert(2, pole=pole, bottle=bottle, 
-                     remaining_sec=data.get("remaining_sec", -1), 
-                     current_weight=data.get("current_weight", 0))
+        # 거의 다 됨 알림 (설정값이 True일 때만)
+        if st.session_state.get('alert_enabled_almost', True):
+            if (0 < data.get("current_weight", 99999) <= almost_weight):
+                add_alert(2, pole=pole, bottle=bottle, 
+                         remaining_sec=data.get("remaining_sec", -1), 
+                         current_weight=data.get("current_weight", 0))
         
-        # 투여 완료
-        if (0 < data.get("current_weight", 99999) <= done_weight):
-            add_alert(1, pole=pole, bottle=bottle)
+        # 투여 완료 알림 (설정값이 True일 때만)
+        if st.session_state.get('alert_enabled_done', True):
+            if (0 < data.get("current_weight", 99999) <= done_weight):
+                add_alert(1, pole=pole, bottle=bottle)
         
-        # 너스콜
-        if data.get("nurse_call", False):
-            add_alert(4, pole=pole)
+        # 너스콜 알림 (설정값이 True일 때만)
+        if st.session_state.get('alert_enabled_nursecall', True):
+            if data.get("nurse_call", False):
+                add_alert(4, pole=pole)
 
 # ====== 통합 알림 체크 함수 ======
 def check_all_alerts():

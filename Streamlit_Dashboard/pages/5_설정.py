@@ -32,13 +32,17 @@ if 'alert_enabled_done' not in st.session_state:
     st.session_state['alert_enabled_done'] = True
 if 'alert_enabled_nursecall' not in st.session_state:
     st.session_state['alert_enabled_nursecall'] = True
-col1, col2, col3 = st.columns(3)
+if 'alert_enabled_battery' not in st.session_state:
+    st.session_state['alert_enabled_battery'] = True
+col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.session_state['alert_enabled_almost'] = st.checkbox("거의 다 됨 알림", value=st.session_state['alert_enabled_almost'])
 with col2:
     st.session_state['alert_enabled_done'] = st.checkbox("투여 완료 알림", value=st.session_state['alert_enabled_done'])
 with col3:
     st.session_state['alert_enabled_nursecall'] = st.checkbox("너스콜 알림", value=st.session_state['alert_enabled_nursecall'])
+with col4:
+    st.session_state['alert_enabled_battery'] = st.checkbox("배터리 알림", value=st.session_state['alert_enabled_battery'])
 
 # === 알림 임계값 설정 (비율 기반) ===
 st.subheader("알림 임계값 설정")
@@ -56,5 +60,5 @@ if st.session_state['alert_enabled_done']:
 # === 기타 시스템 정보/버전 ===
 st.markdown("---")
 st.subheader("시스템 정보")
-st.markdown("- 버전: v1.5.7")
-st.markdown("- 최근 업데이트: 2025-07-19")
+st.markdown("- 버전: v1.6.2")
+st.markdown("- 최근 업데이트: 2025-07-20")
