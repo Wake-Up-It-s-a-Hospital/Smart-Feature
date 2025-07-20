@@ -4,11 +4,68 @@ import json
 # === 추가: DynamoDB 및 Key 임포트 ===
 import boto3
 from boto3.dynamodb.conditions import Key
-from utils.alert_utils import render_alert_sidebar
+from utils.alert_utils import render_alert_sidebar, check_all_alerts
 from utils.logo_utils import show_logo
 
 st.set_page_config(layout="wide")
 st.title("스마트 링거폴대 상세 정보")
+
+# ====== 배터리 칸 표시 함수 ======
+def render_battery_bars(battery_level):
+    """
+    배터리 레벨(0-3)을 받아서 옛날 폴더폰 스타일의 칸으로 표시
+    3: 꽉참 (3칸), 2: 2칸, 1: 1칸, 0: 빈 상태 (0칸)
+    """
+    if battery_level is None:
+        return "정보 없음"
+    
+    # 색상 결정
+    if battery_level == 3:
+        color = "#4CAF50"  # 초록색 (꽉참)
+        status = "양호"
+    elif battery_level == 2:
+        color = "#8BC34A"  # 연한 초록색
+        status = "보통"
+    elif battery_level == 1:
+        color = "#FF9800"  # 주황색
+        status = "부족"
+    else:  # battery_level == 0
+        color = "#F44336"  # 빨간색
+        status = "위험"
+    
+    # 배터리 칸 생성 (3칸)
+    bars_html = ""
+    for i in range(3):
+        if i < battery_level:
+            bars_html += f'<div style="width: 15px; height: 25px; background-color: {color}; border: 1px solid {color}; border-radius: 2px; margin-right: 2px;"></div>'
+        else:
+            bars_html += '<div style="width: 15px; height: 25px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 2px; margin-right: 2px;"></div>'
+    
+    battery_html = f"""
+    <style>
+    .battery-container {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 0.5em;
+    }}
+    .battery-bars {{
+        display: flex;
+        align-items: center;
+    }}
+    .battery-text {{
+        font-size: 14px;
+        color: #666;
+    }}
+    </style>
+    <div class="battery-container">
+        <div class="battery-bars">
+            {bars_html}
+        </div>
+        <div class="battery-text">Level {battery_level} ({status})</div>
+    </div>
+    """
+    return battery_html
 
 show_logo()
 # 사이드바 내용 추가
@@ -16,6 +73,15 @@ st.sidebar.header("스마트 링거폴대 상세 정보")
 st.sidebar.write("각 링거 폴대의 다양한")
 st.sidebar.write("데이터를 확인합니다.")
 st.sidebar.markdown("---")
+
+# ====== 알림 리스트 초기화 ======
+if "alert_list" not in st.session_state:
+    st.session_state.alert_list = []
+if "alert_flags" not in st.session_state:
+    st.session_state.alert_flags = set()
+
+# ====== 통합 알림 체크 ======
+check_all_alerts()
 
 # ====== 사이드바에 알림 리스트 출력 ======
 render_alert_sidebar()
@@ -149,11 +215,9 @@ else:
         indicator_html += "</div>"
         col3.metric(label="수액 잔량", value="")
         col3.markdown(indicator_html, unsafe_allow_html=True)
-        # === 배터리 metric ===
-        if battery_level is not None:
-            col4.metric("배터리 (%)", f"{battery_level}%")
-        else:
-            col4.metric("배터리 (%)", "정보 없음")
+        # === 배터리 칸 표시 ===
+        col4.metric("배터리 상태", "")
+        col4.markdown(render_battery_bars(battery_level), unsafe_allow_html=True)
         # 무게 변화 plotly 그래프 (Overview와 동일)
         st.subheader("무게 변화 추이 (최근 30개)")
         loadcell_history = st.session_state.get('loadcell_history', {})

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import plotly.io as pio
 from PIL import Image
 import io
-from utils.alert_utils import render_alert_sidebar
+from utils.alert_utils import render_alert_sidebar, check_all_alerts
 from utils.logo_utils import show_logo
 
 # WebSocket에서 받은 메시지 처리 (main.py와 동일하게)
@@ -48,6 +48,15 @@ st.sidebar.header("보고서 생성")
 st.sidebar.write("수집 및 분석된 데이터로")
 st.sidebar.write("보고서를 생성합니다.")
 st.sidebar.markdown("---")
+
+# ====== 알림 리스트 초기화 ======
+if "alert_list" not in st.session_state:
+    st.session_state.alert_list = []
+if "alert_flags" not in st.session_state:
+    st.session_state.alert_flags = set()
+
+# ====== 통합 알림 체크 ======
+check_all_alerts()
 
 # ====== 사이드바에 알림 리스트 출력 ======
 render_alert_sidebar()

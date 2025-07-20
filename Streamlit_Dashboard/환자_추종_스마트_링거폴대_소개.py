@@ -5,7 +5,7 @@ import websocket
 import time
 import json
 from streamlit_autorefresh import st_autorefresh
-from utils.alert_utils import render_alert_sidebar
+from utils.alert_utils import render_alert_sidebar, check_all_alerts
 import os
 from utils.logo_utils import show_logo
 
@@ -98,82 +98,55 @@ st.sidebar.write("팀장: 김대연")
 st.sidebar.write("조원: 김윤성, 최황은, 최훈석")
 st.sidebar.markdown("---")
 
-# ====== 전역 알림 함수 및 알림 아이콘 함수 추가 ======
-def global_alert(message, bg_color="#ffcc00", text_color="#000"):
-    st.markdown(
-        f"""
-        <div style='position:fixed; top:0; left:0; right:0; z-index:9999; background-color:{bg_color}; color:{text_color}; padding:10px 20px; font-weight:bold; text-align:center;'>
-            {message}
-        </div>
-        <div style='margin-top:50px'></div>
-        """,
-        unsafe_allow_html=True
+# === 사이드바에 배터리 상태 표시 ===
+st.sidebar.subheader("📱 배터리 상태")
+try:
+    import boto3
+    from boto3.dynamodb.conditions import Key
+    dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')
+    table_polestat = dynamodb.Table('pole_stat')
+    
+    response = table_polestat.query(
+        KeyConditionExpression=Key('pole_id').eq(1),
+        ScanIndexForward=False,
+        Limit=1
     )
+    
+    if response.get('Items'):
+        battery_level = response['Items'][0].get('battery_level', None)
+        if battery_level is not None:
+            # 배터리 레벨에 따른 이모지와 텍스트
+            if battery_level == 3:
+                battery_emoji = "🔋"
+                battery_text = "배터리 양호"
+            elif battery_level == 2:
+                battery_emoji = "🔋"
+                battery_text = "배터리 보통"
+            elif battery_level == 1:
+                battery_emoji = "⚠️"
+                battery_text = "배터리 부족"
+            else:  # battery_level == 0
+                battery_emoji = "🔴"
+                battery_text = "배터리 위험"
+            
+            st.sidebar.write(f"{battery_emoji} {battery_text} (Level {battery_level})")
+        else:
+            st.sidebar.write("🔍 배터리 정보 없음")
+    else:
+        st.sidebar.write("🔍 배터리 정보 없음")
+except Exception as e:
+    st.sidebar.write("🔍 배터리 정보 조회 실패")
 
-# ====== 알림창 열림 상태 관리 (클릭 토글) ======
-if "noti_open" not in st.session_state:
-    st.session_state.noti_open = False
+st.sidebar.markdown("---")
 
-def toggle_noti():
-    st.session_state.noti_open = not st.session_state.noti_open
-
-# ====== 알림 템플릿 딕셔너리 ======
-ALERT_TEMPLATES = {
-    1: "{pole}번 폴대의 {bottle} 수액이 다 투여되었습니다.",
-    2: "{pole}번 폴대의 {bottle} 수액이 거의 다 되었습니다. (남은 시간: {remaining_sec:.0f}분, 무게: {current_weight:.1f}g)",
-    3: "{pole}번 폴대의 배터리가 거의 방전되었습니다. (남은 배터리: {battery:.0f}%",
-    4: "{pole}번 폴대에서 너스콜이 발생했습니다."
-}
-
-# ====== 알림 추가 함수 (ID와 파라미터 기반) ======
-def add_alert(alert_id, **params):
-    template = ALERT_TEMPLATES.get(alert_id)
-    if template is None:
-        return
-    msg = template.format(**params)
-    # 중복 방지: 같은 알림이 이미 있으면 추가하지 않음
-    key = (alert_id, tuple(sorted(params.items())))
-    if "alert_flags" not in st.session_state:
-        st.session_state.alert_flags = set()
-    if key in st.session_state.alert_flags:
-        return
-    st.session_state.alert_flags.add(key)
-    st.session_state.alert_list.append({
-        "id": alert_id,
-        "msg": msg,
-        "params": params
-    })
-
-# ====== 알림 리스트 및 플래그 초기화 ======
+# ====== 알림 리스트 초기화 ======
 if "alert_list" not in st.session_state:
     st.session_state.alert_list = []
 if "alert_flags" not in st.session_state:
     st.session_state.alert_flags = set()
 
-# ====== 알림 조건 체크 및 이벤트 트리거 (ID/파라미터 기반으로 변경) ======
-# ALMOST_DONE_WEIGHT =300  # 50g 이하
-# DONE_WEIGHT = 150  # 5g 이하
-
-for loadcel, data in st.session_state.loadcell_data.items():
-    pole = loadcel  # 폴대 번호 (loadcel이 곧 폴대 번호라고 가정)
-    bottle = "오른쪽"     # 링거 번호 (예시, 실제 데이터에 맞게 수정)
-    # 각 장비별 임계값 불러오기
-    almost_key = f'alert_almost_weight_{loadcel}'
-    done_key = f'alert_done_weight_{loadcel}'
-    almost_weight = st.session_state.get(almost_key, 300)
-    done_weight = st.session_state.get(done_key, 150)
-    # 투여 거의 완료 (무게만으로 판단)
-    if (0 < data.get("current_weight", 99999) <= almost_weight):
-        add_alert(2, pole=pole, bottle=bottle, remaining_sec=data.get("remaining_sec", -1), current_weight=data.get("current_weight", 0))
-    # 투여 완료
-    if (0 < data.get("current_weight", 99999) <= done_weight):
-        add_alert(1, pole=pole, bottle=bottle)
-    # 배터리 부족
-    if "battery" in data and data["battery"] <= 20:  # 예시: 20% 이하일 때 알림
-        add_alert(3, pole=pole, battery=data["battery"])
-    # 너스콜
-    if data.get("nurse_call", False):
-        add_alert(4, pole=pole)
+# ====== 통합 알림 체크 ======
+check_all_alerts()
 
 # --- 1. 히어로 섹션 ---
 with st.container():

@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 import boto3
 import pytz
-from utils.alert_utils import render_alert_sidebar
+from utils.alert_utils import render_alert_sidebar, check_all_alerts
 from utils.logo_utils import show_logo
 
 # WebSocket에서 받은 메시지 처리 (main.py와 동일하게)
@@ -44,6 +44,15 @@ st.sidebar.header("수액 사용 통계 분석")
 st.sidebar.write("각 링거 폴대 별로")
 st.sidebar.write("데이터를 분석합니다.")
 st.sidebar.markdown("---")
+
+# ====== 알림 리스트 초기화 ======
+if "alert_list" not in st.session_state:
+    st.session_state.alert_list = []
+if "alert_flags" not in st.session_state:
+    st.session_state.alert_flags = set()
+
+# ====== 통합 알림 체크 ======
+check_all_alerts()
 
 # ====== 사이드바에 알림 리스트 출력 ======
 render_alert_sidebar()
