@@ -112,6 +112,9 @@ const float alpha = 0.01;
 const int delay_interval = 100;
 const int max_data = 300;
 
+// --- 배터리 변수 선언 및 초기화 ---
+int battery = 0;
+
 // --- 필터 인스턴스 ---
 HybridFilter filter1;
 
@@ -369,11 +372,64 @@ void connectToWiFi() {
   Serial.println("\n✅ Wi-Fi 연결 성공");
 }
 
+int fetchBatteryLevelFromPoleStat() {
+  if (WiFi.status() == WL_CONNECTED) {
+      WiFiClientSecure client;
+      client.setInsecure();
+      HTTPClient http;
+      http.begin(client, "https://tln54ai1oi.execute-api.ap-northeast-2.amazonaws.com/v1/data?pole_id=1");
+      http.addHeader("x-api-key", "NfM1X8S5xk72BrGbFqr1t9CMtzxMaeKe7PFatzaC");
+      int httpResponseCode = http.GET();
+      if (httpResponseCode == 200) {
+          String response = http.getString();
+          Serial.println("=== [API 응답] ===");
+          Serial.println(response); // ★ 이 부분 추가!
+          Serial.println("==================");
+          JsonDocument doc;
+          DeserializationError error = deserializeJson(doc, response);
+          if (!error && doc.containsKey("battery_level")) {
+              int battery = doc["battery_level"];
+              Serial.printf("🔋 배터리 레벨: %d%%\n", battery);
+              http.end();
+              return battery;
+          } else {
+              Serial.println("❌ JSON 파싱 실패 또는 battery_level 없음");
+          }
+      } else {
+          Serial.printf("❌ 배터리 조회 실패 (HTTP 코드: %d)\n", httpResponseCode);
+      }
+      http.end();
+  } else {
+      Serial.println("⚠️ Wi-Fi 연결 안됨");
+  }
+  return -1; // 실패 시
+}
+
+// 배터리 단계(0~3)에 따라 이미지 번호 반환
+int getBatteryPicIndex(int battery_level) {
+    switch (battery_level) {
+        case 0: return 8;
+        case 1: return 8;
+        case 2: return 8;
+        case 3: return 8;
+        default: return 8; // 예외시 0단계로
+    }
+}
+
 // ===== 초기 설정 =====
 void setup() {
   Serial.begin(115200);
 
   connectToWiFi();
+  
+  // pole_stat에서 battery_level 조회 및 저장
+  battery = fetchBatteryLevelFromPoleStat();
+  if (battery >= 0) {
+    Serial.printf("✅ pole_stat에서 배터리 레벨 불러오기 성공: %d%%\n", battery);
+  } else {
+    Serial.println("⚠️ pole_stat에서 배터리 레벨 불러오기 실패, 기본값 사용");
+    battery = 78; // 기본값
+  }
   
   Serial.println("HX711 로드셀 1개 초기화 중...");
   
@@ -622,12 +678,15 @@ void loop() {
     sendCommand("t_rem_R.txt=\"" + String(remRBuf) + "\"");
 
     // 기타 정보 고정 전송
-    int battery = 78;
+    // int battery = 78;
     String espStatus = (WiFi.status() == WL_CONNECTED) ? "신호 연결 양호" : "신호 연결 불량";
     // String typeL = "비어있음", typeR = "수액";  // 왼쪽은 사용하지 않음
 
-    sendCommand("t_bat.txt=\"" + String(battery) + "%\"");
+    // sendCommand("t_bat.txt=\"" + String(battery) + "%\"");
     sendCommand("t_esp.txt=\"" + espStatus + "\"");
+    // 배터리 단계에 따라 이미지 표시
+    int batteryPic = getBatteryPicIndex(battery);
+    sendCommand("p_battery.pic=" + String(batteryPic));
     // sendCommand("t_type_L.txt=\"" + typeL + "\"");  // 왼쪽은 사용하지 않음
     // sendCommand("t_type_R.txt=\"\"");
   }
