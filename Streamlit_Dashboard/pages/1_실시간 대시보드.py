@@ -9,18 +9,22 @@ import boto3
 import os
 from datetime import datetime, timezone, timedelta
 import threading
-from utils.alert_utils import render_alert_sidebar, check_all_alerts
-from utils.logo_utils import show_logo
-from boto3.dynamodb.conditions import Key
+from utils.auth_utils import require_auth, render_userbox, get_current_user
 
 KST = timezone(timedelta(hours=9))
 
 st.set_page_config(layout="wide")
+user = get_current_user()
+if not user:
+    try:
+        st.switch_page("환자_추종_스마트_링거폴대_소개.py")
+    except Exception:
+        st.stop()
+render_userbox()
 
 # 1초마다 자동 새로고침
-st_autorefresh(interval=5000, key="datarefresh")
+st_autorefresh(interval=1000, key="datarefresh")
 
-show_logo()
 # 사이드바 내용 추가
 st.sidebar.header("실시간 대시보드")
 st.sidebar.write("수액의 현재 무게와")
@@ -28,7 +32,21 @@ st.sidebar.write("남은 시간을 확인합니다.")
 st.sidebar.markdown("---")
 
 # ====== 사이드바에 알림 리스트 출력 ======
-render_alert_sidebar()
+st.sidebar.markdown("### 📋 알림")
+if st.session_state.get('alert_list'):
+    for alert in st.session_state['alert_list']:
+        if alert["id"] == 1:
+            st.sidebar.success(alert["msg"])
+        elif alert["id"] == 2:
+            st.sidebar.warning(alert["msg"])
+        elif alert["id"] == 3:
+            st.sidebar.error(alert["msg"])
+        elif alert["id"] == 4:
+            st.sidebar.error(alert["msg"])
+        else:
+            st.sidebar.info(alert["msg"])
+else:
+    st.sidebar.info("새로운 알림이 없습니다.")
 
 # --- UI 표시 ---
 st.title("실시간 대시보드")
@@ -71,19 +89,6 @@ if q is not None:
             data = json.loads(msg)
             loadcel = data.get("loadcel")
             timestamp = data.get("timestamp")
-            # === nurse_call 알림 추가 ===
-            if data.get("nurse_call", False):
-                if 'alert_list' not in st.session_state:
-                    st.session_state['alert_list'] = []
-                # 중복 방지: 같은 loadcel, nurse_call 알림이 이미 최근에 있으면 추가하지 않음
-                recent_nurse_alerts = [a for a in st.session_state['alert_list'][-10:] if a.get('nurse_call') and a.get('loadcel_id') == loadcel]
-                if not recent_nurse_alerts:
-                    st.session_state['alert_list'].append({
-                        "id": 3,
-                        "msg": f"🚨 로드셀 {loadcel}에서 간호사 호출이 발생했습니다!",
-                        "loadcel_id": loadcel,
-                        "nurse_call": True
-                    })
             if loadcel:
                 try:
                     current_weight = float(data.get("current_weight", 0))
@@ -106,14 +111,8 @@ if q is not None:
                     est_sec = prev_sec
                 st.session_state['weight_sec_calc'][loadcel] = est_sec
                 weight_sec = est_sec
-                # 배터리 레벨 처리
-                try:
-                    battery_level = int(data.get("battery_level", -1)) if data.get("battery_level") is not None else None
-                except:
-                    battery_level = None
                 st.session_state.loadcell_data[loadcel] = {
                     "current_weight": current_weight,
-                    "battery_level": battery_level,  # 배터리 레벨 추가
                     # "weight_sec": weight_sec  # 서버 기반 남은 시간 저장 주석처리
                 }
                 if loadcel not in st.session_state.loadcell_history:
@@ -124,96 +123,15 @@ if q is not None:
         except Exception as e:
             print(f"메시지 파싱 오류: {msg} | 오류: {e}")
 
-# ====== 알림 리스트 초기화 ======
-if "alert_list" not in st.session_state:
-    st.session_state.alert_list = []
-if "alert_flags" not in st.session_state:
-    st.session_state.alert_flags = set()
-
-# ====== 통합 알림 체크 ======
-check_all_alerts()
-
 # ====== 로컬 Tare(영점) 기능을 위한 offset 관리 ======
 if 'tare_offsets' not in st.session_state:
     st.session_state['tare_offsets'] = {}
-
-# ====== 배터리 칸 표시 함수 ======
-def render_battery_bars(battery_level):
-    """
-    배터리 레벨(0-3)을 받아서 옛날 폴더폰 스타일의 칸으로 표시
-    3: 꽉참 (3칸), 2: 2칸, 1: 1칸, 0: 빈 상태 (0칸)
-    """
-    if battery_level is None:
-        return "정보 없음"
-    
-    # 색상 결정
-    if battery_level == 3:
-        color = "#4CAF50"  # 초록색 (꽉참)
-        status = "양호"
-    elif battery_level == 2:
-        color = "#8BC34A"  # 연한 초록색
-        status = "보통"
-    elif battery_level == 1:
-        color = "#FF9800"  # 주황색
-        status = "부족"
-    else:  # battery_level == 0
-        color = "#F44336"  # 빨간색
-        status = "위험"
-    
-    # 배터리 칸 생성 (3칸)
-    bars_html = ""
-    for i in range(3):
-        if i < battery_level:
-            bars_html += f'<div style="width: 15px; height: 25px; background-color: {color}; border: 1px solid {color}; border-radius: 2px; margin-right: 2px;"></div>'
-        else:
-            bars_html += '<div style="width: 15px; height: 25px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 2px; margin-right: 2px;"></div>'
-    
-    battery_html = f"""
-    <style>
-    .battery-container {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 0.5em;
-    }}
-    .battery-bars {{
-        display: flex;
-        align-items: center;
-    }}
-    .battery-text {{
-        font-size: 14px;
-        color: #666;
-    }}
-    </style>
-    <div class="battery-container">
-        <div class="battery-bars">
-            {bars_html}
-        </div>
-        <div class="battery-text">Level {battery_level} ({status})</div>
-    </div>
-    """
-    return battery_html
 
 # 로드셀 ID 순서대로 정렬하여 항상 같은 순서로 표시
 for loadcel_id in sorted(loadcell_data.keys()):
     if str(loadcel_id) != '1':
         continue
     values = loadcell_data[loadcel_id]
-    
-    # === 배터리 정보 조회 (웹소켓에서 받은 데이터 우선 사용) ===
-    battery_level = values.get('battery_level', None)
-    if battery_level is None:
-        # 웹소켓에서 받지 못한 경우 DynamoDB에서 조회
-        try:
-            response = table_polestat.query(
-                KeyConditionExpression=Key('pole_id').eq(int(loadcel_id)),
-                ScanIndexForward=False,  # 최신순 정렬
-                Limit=1
-            )
-            if response.get('Items'):
-                battery_level = response['Items'][0].get('battery_level', None)
-        except Exception as e:
-            battery_level = None
     
     st.write("---")
     st.subheader(f"로드셀 #{loadcel_id}")
@@ -314,7 +232,6 @@ for loadcel_id in sorted(loadcell_data.keys()):
             else:
                 indicator_html += "<div class='indicator-box empty'></div>"
         indicator_html += "</div>"
-        col1, col2, col3, col4 = st.columns(4)
         col1.metric(label="현재 무게", value=f"{display_weight}g")
         # 남은 시간 인디케이터 (무게 기반 계산값만 사용)
         if weight_sec < 0:
@@ -333,10 +250,6 @@ for loadcel_id in sorted(loadcell_data.keys()):
         col2.metric(label="남은 시간", value=remaining_str)
         col3.metric(label="수액 잔량", value="")
         col3.markdown(indicator_html, unsafe_allow_html=True)
-        col4.metric("배터리 상태", "")
-        col4.markdown(render_battery_bars(battery_level), unsafe_allow_html=True)
-        st.write("---")
-        
         # plotly 그래프 추가 (history가 1개 이상일 때만)
         history = loadcell_history.get(loadcel_id, [])
         tuple_history = [h for h in history if isinstance(h, tuple) and len(h) == 2]

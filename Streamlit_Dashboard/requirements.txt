@@ -6,5 +6,8 @@ plotly
 pandas
 pytz
 fpdf
-pillow
+bcrypt
+numpy
+scikit-learn
+statsmodels
 matplotlib

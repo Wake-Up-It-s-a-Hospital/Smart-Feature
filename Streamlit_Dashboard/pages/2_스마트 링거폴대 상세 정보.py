@@ -6,9 +6,18 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from utils.alert_utils import render_alert_sidebar, check_all_alerts
 from utils.logo_utils import show_logo
+from utils.auth_utils import require_auth, render_userbox, get_current_user
+from utils.assign_utils import require_device_access, get_user_assignments
 
 st.set_page_config(layout="wide")
 st.title("스마트 링거폴대 상세 정보")
+user = get_current_user()
+if not user:
+    try:
+        st.switch_page("환자_추종_스마트_링거폴대_소개.py")
+    except Exception:
+        st.stop()
+render_userbox()
 
 # ====== 배터리 칸 표시 함수 ======
 def render_battery_bars(battery_level):
@@ -131,7 +140,13 @@ else:
     # ====== 로컬 Tare(영점) 기능을 위한 offset 관리 ======
     # 1. 드롭다운으로 장비 선택
     device_ids = sorted(loadcell_data.keys())
+    user = get_current_user()
+    if user and user.get('role') == 'clinician':
+        assigned = set(get_user_assignments(user.get('username', '')))
+        device_ids = [d for d in device_ids if str(d) in assigned]
     selected_device = st.selectbox("확인할 장비 ID를 선택하세요:", device_ids)
+    if selected_device:
+        require_device_access(selected_device)
 
     # === 추가: DynamoDB 연결 ===
     dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')
