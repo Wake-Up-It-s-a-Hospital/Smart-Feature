@@ -7,3 +7,7 @@ pandas
 pytz
 fpdf
 bcrypt
+numpy
+scikit-learn
+statsmodels
+matplotlib
