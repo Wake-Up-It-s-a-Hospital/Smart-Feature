@@ -3,6 +3,7 @@ import json
 from utils.alert_utils import render_alert_sidebar, check_all_alerts
 from utils.logo_utils import show_logo
 from utils.auth_utils import require_auth, render_userbox, admin_create_or_update_user, get_current_user
+from utils.assign_utils import render_assignment_manager
 
 st.title("설정")
 user = get_current_user()
@@ -66,12 +67,18 @@ if st.session_state['alert_enabled_done']:
     st.session_state['alert_done_ratio'] = st.slider("투여 완료 알림 기준 (%)", 5, 20, st.session_state['alert_done_ratio'], 1)
     st.info(f"꽉 찬 수액팩 무게의 {st.session_state['alert_done_ratio']}% 이하일 때 알림이 발생합니다.")
 
-# === 기타 시스템 정보/버전 ===
-st.markdown("---")
-st.subheader("시스템 정보")
-st.markdown("- 버전: v1.6.2")
-st.markdown("- 최근 업데이트: 2025-07-20")
-
 st.markdown("---")
 st.subheader("계정 관리")
 admin_create_or_update_user()
+
+# === 기타 시스템 정보/버전 ===
+st.markdown("---")
+st.subheader("담당 환자(장비) 배정")
+loadcell_data = st.session_state.get('loadcell_data', {})
+all_devices = sorted(loadcell_data.keys())
+render_assignment_manager(all_devices=all_devices)
+
+st.markdown("---")
+st.subheader("시스템 정보")
+st.markdown("- 버전: v1.8.5")
+st.markdown("- 최근 업데이트: 2025-08-13")
