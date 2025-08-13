@@ -75,7 +75,8 @@ static inline float fast_cos_small(float x) {
 // UART 통신 변수
 char uart_buf[8];
 char re_data[8];
-char uwb_buf[5];  // 4 -> 5 바이트로 확장 (데이터 4 + NULL 종단 1)
+char uwb_buf[4];   // UWB 4바이트 순환 패킷 (UART4)
+char fe_data[5];   // UWB 파싱 임시 버퍼 (NULL 포함)
 float uwb_data;
 int x_data, y_data;
 float w_L, w_R;
@@ -209,47 +210,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart -> Instance == USART1) {
-        // 4-byte 고정 패킷: 이스케이프 문자 기준
-        // 예: "0.79", "1.23", "2.45" 등
-        
-        // 이스케이프 문자 검색 (개행문자 \n 또는 캐리지리턴 \r)
-        int escape_pos = -1;
+    // UWB: UART4, 4바이트 순환 패킷 → '.' 기준 재정렬 후 파싱
+    if (huart->Instance == UART4) {
         for (int i = 0; i < 4; i++) {
-            if (uwb_buf[i] == '\n' || uwb_buf[i] == '\r') {
-                escape_pos = i;
-                break;
-            }
-        }
-        
-        if (escape_pos > 0 && escape_pos <= 4) {  // 이스케이프 문자가 있고 데이터가 있음
-            // 4바이트 고정 패킷 파싱: "d.dd" 형태
-            // uwb_buf[0]: 일의 자리
-            // uwb_buf[1]: 소수점
-            // uwb_buf[2]: 소수점 첫째 자리
-            // uwb_buf[3]: 소수점 둘째 자리
-            
-            if (uwb_buf[0] >= '0' && uwb_buf[0] <= '9' &&  // 일의 자리 검증
-                uwb_buf[1] == '.' &&                        // 소수점 검증
-                uwb_buf[2] >= '0' && uwb_buf[2] <= '9' &&  // 소수점 첫째 자리 검증
-                uwb_buf[3] >= '0' && uwb_buf[3] <= '9') {  // 소수점 둘째 자리 검증
-                
-                // 4바이트 고정 패킷 파싱
-                float tmp = (uwb_buf[0] - '0') +                    // 일의 자리
-                           (uwb_buf[2] - '0') * 0.1f +             // 소수점 첫째 자리
-                           (uwb_buf[3] - '0') * 0.01f;             // 소수점 둘째 자리
-                
-                if (tmp > 0.0f && tmp < 20.0f) {  // 범위 검증
-                    dis = tmp;  // 거리 업데이트
+            if (uwb_buf[(i + 1) % 4] == '.') {
+                for (int j = 0; j < 4; j++) {
+                    fe_data[j] = uwb_buf[(i + j) % 4];
                 }
             }
         }
-        
-        // 다음 수신 준비 (4바이트 고정)
-        HAL_UART_Receive_IT(&huart1, (uint8_t*)uwb_buf, 4);
+        fe_data[4] = '\0';
+        float parsed = dis;
+        if (sscanf(fe_data, "%f", &parsed) == 1) {
+            parsed = roundf(parsed * 100.0f) / 100.0f;
+            dis = parsed;
+        }
+        HAL_UART_Receive_IT(&huart4, (uint8_t*)uwb_buf, 4);
     }
-    if (huart->Instance == USART3) {
-        if (rx_byte == '/') {
+    // Husky: USART2, '.' 종단 처리
+    if (huart->Instance == USART2) {
+        if (rx_byte == '.') {
             if (rx_index >= 1 && rx_index < sizeof(rx_buf)) {
                 rx_buf[rx_index] = rx_byte;
                 rx_buf[rx_index + 1] = '\0';
@@ -265,7 +245,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
                 rx_index = 0;
             }
         }
-        HAL_UART_Receive_IT(&huart3, &rx_byte, 1);
+        HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
     }
 }
 
@@ -451,16 +431,16 @@ void calculate_wheel_speeds(void) {
 
 void motor_control(void) {
     if (emergency_stop_flag) {
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
         return;
     }
     
     // ① Feed-forward PWM 계산 (목표 속도 → PWM)
-    float pwm_ff_L = (omega_L_ref / MAX_RAD_S) * TIM3_ARR;  // 선형 매핑
-    float pwm_ff_R = (omega_R_ref / MAX_RAD_S) * TIM3_ARR;
+    float pwm_ff_L = (omega_L_ref / MAX_RAD_S) * htim1.Init.Period;  // 선형 매핑
+    float pwm_ff_R = (omega_R_ref / MAX_RAD_S) * htim1.Init.Period;
     
     // ② PID 보정 PWM 계산 (속도 오차 → ΔPWM)
     float pid_output_L = pid_control(omega_L_ref, omega_L_meas, VELOCITY_DT, &integral_L, &prev_error_L, Kp_vel, Ki_vel, Kd_vel);
@@ -476,34 +456,34 @@ void motor_control(void) {
     float pwm_R = -(pwm_ff_R + pid_output_R) + pwm_bias_R;  // 오른쪽은 하드웨어 부호 반전
     
     // ④ 대칭 포화 (최대 35%)
-    const float PWM_MAX = TIM3_ARR * 0.35f;
+    const float PWM_MAX = htim1.Init.Period * 0.35f;
     pwm_L = fmaxf(fminf(pwm_L, PWM_MAX), -PWM_MAX);
     pwm_R = fmaxf(fminf(pwm_R, PWM_MAX), -PWM_MAX);
     
     // PWM Deadband 적용 (방향 핀 플리커 방지)
-    if (fabsf(pwm_L) < PWM_DEADBAND * TIM3_ARR) pwm_L = 0.0f;
-    if (fabsf(pwm_R) < PWM_DEADBAND * TIM3_ARR) pwm_R = 0.0f;
+    if (fabsf(pwm_L) < PWM_DEADBAND * htim1.Init.Period) pwm_L = 0.0f;
+    if (fabsf(pwm_R) < PWM_DEADBAND * htim1.Init.Period) pwm_R = 0.0f;
     
     // 최소 듀티 바닥깔기 (출발 토크 보장)
-    if (pwm_L > 0 && pwm_L < MIN_PWM_DUTY * TIM3_ARR) pwm_L = MIN_PWM_DUTY * TIM3_ARR;
-    if (pwm_L < 0 && pwm_L > -MIN_PWM_DUTY * TIM3_ARR) pwm_L = -MIN_PWM_DUTY * TIM3_ARR;
-    if (pwm_R > 0 && pwm_R < MIN_PWM_DUTY * TIM3_ARR) pwm_R = MIN_PWM_DUTY * TIM3_ARR;
-    if (pwm_R < 0 && pwm_R > -MIN_PWM_DUTY * TIM3_ARR) pwm_R = -MIN_PWM_DUTY * TIM3_ARR;
+    if (pwm_L > 0 && pwm_L < MIN_PWM_DUTY * htim1.Init.Period) pwm_L = MIN_PWM_DUTY * htim1.Init.Period;
+    if (pwm_L < 0 && pwm_L > -MIN_PWM_DUTY * htim1.Init.Period) pwm_L = -MIN_PWM_DUTY * htim1.Init.Period;
+    if (pwm_R > 0 && pwm_R < MIN_PWM_DUTY * htim1.Init.Period) pwm_R = MIN_PWM_DUTY * htim1.Init.Period;
+    if (pwm_R < 0 && pwm_R > -MIN_PWM_DUTY * htim1.Init.Period) pwm_R = -MIN_PWM_DUTY * htim1.Init.Period;
     
     // 최종 PWM 출력
     if (pwm_L >= 0) {
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, (uint32_t)pwm_L);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, (uint32_t)pwm_L);
     } else {
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, (uint32_t)(-pwm_L));
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, (uint32_t)(-pwm_L));
     }
     if (pwm_R >= 0) {
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, (uint32_t)pwm_R);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, (uint32_t)pwm_R);
     } else {
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, (uint32_t)(-pwm_R));
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, (uint32_t)(-pwm_R));
     }
     
     // Live Expression 기록
@@ -526,7 +506,7 @@ void adaptive_speed_correction(void) {
             if (fabsf(speed_bias_avg) > 0.5f && bias_learning_enabled) {
                 // 부동소수점 연산 최적화: 상수 미리 계산
                 const float PWM_ADJUSTMENT_SCALE = 1.5f;
-                float pwm_adjustment = (speed_bias_avg / MAX_RAD_S) * TIM3_ARR * PWM_ADJUSTMENT_SCALE;
+                float pwm_adjustment = (speed_bias_avg / MAX_RAD_S) * htim1.Init.Period * PWM_ADJUSTMENT_SCALE;
                 if (speed_bias_avg > 0) {
                     pwm_bias_L += pwm_adjustment;
                     pwm_bias_R -= pwm_adjustment * 0.2f;
@@ -553,7 +533,7 @@ void adaptive_speed_correction(void) {
         if (fabsf(speed_bias_avg) > 0.5f && bias_learning_enabled) {
             // 부동소수점 연산 최적화: 상수 미리 계산
             const float PWM_ADJUSTMENT_SCALE = 1.5f;
-            float pwm_adjustment = (speed_bias_avg / MAX_RAD_S) * TIM3_ARR * PWM_ADJUSTMENT_SCALE;
+            float pwm_adjustment = (speed_bias_avg / MAX_RAD_S) * htim1.Init.Period * PWM_ADJUSTMENT_SCALE;
             if (speed_bias_avg > 0) {
                 pwm_bias_L += pwm_adjustment;
                 pwm_bias_R -= pwm_adjustment * 0.2f;
@@ -681,11 +661,11 @@ void inner_loop_control(void) {
 #endif
     motor_control();
     if (now - boot_ms < SOFT_START_TIME_MS) {
-        const uint32_t cap = (uint32_t)(htim3.Init.Period * PWM_SOFT_CAP_RATIO);
-        uint32_t pwm1 = __HAL_TIM_GET_COMPARE(&htim3, TIM_CHANNEL_1);
-        uint32_t pwm2 = __HAL_TIM_GET_COMPARE(&htim3, TIM_CHANNEL_2);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, (pwm1 < cap) ? pwm1 : cap);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, (pwm2 < cap) ? pwm2 : cap);
+        const uint32_t cap = (uint32_t)(htim1.Init.Period * PWM_SOFT_CAP_RATIO);
+        uint32_t pwm1 = __HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_1);
+        uint32_t pwm2 = __HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_2);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, (pwm1 < cap) ? pwm1 : cap);
+        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, (pwm2 < cap) ? pwm2 : cap);
     }
 }
 
@@ -728,22 +708,20 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_TIM3_Init();
-  MX_USART1_UART_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM4_Init();
-  MX_USART3_UART_Init();
+  MX_UART4_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   boot_ms = HAL_GetTick();
   HAL_TIM_Base_Start_IT(&htim1);  // TIM1만 사용 (100Hz 내부 + 20Hz 외부 루프)
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
   HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
   enable_adaptive_correction();
-  HAL_UART_Receive_IT(&huart1, (uint8_t*)uwb_buf, 4);  // 4바이트로 수정
-  HAL_UART_Receive_IT(&huart3, &rx_byte, 1);
+  HAL_UART_Receive_IT(&huart4, (uint8_t*)uwb_buf, 4);  // UWB (UART4)
+  HAL_UART_Receive_IT(&huart2, &rx_byte, 1);          // Husky (USART2)
   /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -776,12 +754,12 @@ int main(void)
       const float DIS_MIN = 0.1f;  // UWB 센서 최소 유효 거리
       dis = fmaxf(fminf(dis, DIS_MAX), DIS_MIN);  // Soft-saturate
       theta = (float)rx_theta;  // 부호 뒤집기 제거 - 허스키렌즈 부호 그대로 사용
-      // 디버그용 LED 제어
+      // 디버그용 LED 제어 (NUCLEO-F746ZG LD1: PB0)
       if (dis >= 0.9f) {
-          HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);  // dis >= 0.9m일 때 LED ON
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
       }
       else {
-          HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET); // 그 외에는 LED OFF
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
       }
       
       // 로그 출력 (ISR에서 메인 루프로 이동)
@@ -809,11 +787,12 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
-  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 72;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 3;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) { Error_Handler(); }
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
