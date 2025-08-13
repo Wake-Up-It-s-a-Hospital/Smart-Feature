@@ -1,0 +1,12 @@
+{
+  "admin": {
+    "name": "관리자",
+    "role": "admin",
+    "password_hash": "$2b$12$52Gx0h.XJmAkHnBQRN26Ge/JQYFO.yQDRQKWUxfbugXoufT3YXuGS"
+  },
+  "nurse1": {
+    "name": "간호사1",
+    "role": "clinician",
+    "password_hash": "$2b$12$7jdy0Gj.STL0L2jAPOw5fOMCmLZo5d9124dU0vO2f07v4847WtRKS"
+  }
+}

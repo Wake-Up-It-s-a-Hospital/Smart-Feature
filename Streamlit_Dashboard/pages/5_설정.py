@@ -2,8 +2,17 @@ import streamlit as st
 import json
 from utils.alert_utils import render_alert_sidebar, check_all_alerts
 from utils.logo_utils import show_logo
+from utils.auth_utils import require_auth, render_userbox, admin_create_or_update_user, get_current_user
 
 st.title("설정")
+user = get_current_user()
+if not user:
+    try:
+        st.switch_page("환자_추종_스마트_링거폴대_소개.py")
+    except Exception:
+        st.stop()
+require_auth(allowed_roles=["admin"])  # 설정 페이지는 관리자 전용으로 가정
+render_userbox()
 
 show_logo()
 # 사이드바 내용 추가
@@ -62,3 +71,7 @@ st.markdown("---")
 st.subheader("시스템 정보")
 st.markdown("- 버전: v1.6.2")
 st.markdown("- 최근 업데이트: 2025-07-20")
+
+st.markdown("---")
+st.subheader("계정 관리")
+admin_create_or_update_user()

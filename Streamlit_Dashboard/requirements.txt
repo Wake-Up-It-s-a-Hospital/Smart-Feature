@@ -6,5 +6,4 @@ plotly
 pandas
 pytz
 fpdf
-pillow
-matplotlib
+bcrypt

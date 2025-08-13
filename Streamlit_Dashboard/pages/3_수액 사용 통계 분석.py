@@ -6,6 +6,7 @@ import boto3
 import pytz
 from utils.alert_utils import render_alert_sidebar, check_all_alerts
 from utils.logo_utils import show_logo
+from utils.auth_utils import require_auth, render_userbox, get_current_user
 
 # WebSocket에서 받은 메시지 처리 (main.py와 동일하게)
 q = st.session_state.get("queue", None)
@@ -44,6 +45,13 @@ if q is not None:
         except Exception as e:
             print(f"메시지 파싱 오류: {msg} | 오류: {e}")
 
+user = get_current_user()
+if not user:
+    try:
+        st.switch_page("환자_추종_스마트_링거폴대_소개.py")
+    except Exception:
+        st.stop()
+render_userbox()
 show_logo()
 # 사이드바 내용 추가
 st.sidebar.header("수액 사용 통계 분석")
