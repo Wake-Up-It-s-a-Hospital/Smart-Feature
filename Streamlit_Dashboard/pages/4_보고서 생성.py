@@ -9,6 +9,12 @@ import io
 from utils.alert_utils import render_alert_sidebar, check_all_alerts
 from utils.logo_utils import show_logo
 from utils.auth_utils import require_auth, render_userbox, get_current_user
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+from statsmodels.tsa.seasonal import STL
+import statsmodels.api as sm
 
 # WebSocket에서 받은 메시지 처리 (main.py와 동일하게)
 q = st.session_state.get("queue", None)
@@ -118,6 +124,22 @@ if not df.empty:
     include_graph = st.checkbox("그래프 포함", value=True)
     # === 데이터 필터링 ===
     period_df = df[df['period'] == selected_period]
+    # === 고급 통계 옵션 (period_df 생성 이후) ===
+    st.markdown("---")
+    st.subheader("고급 통계 옵션")
+    include_corr = st.checkbox("상관관계 분석 포함", value=False)
+    include_trend_adv = st.checkbox("트렌드 분석(기울기) 포함", value=False)
+    include_kmeans = st.checkbox("장비 클러스터링 포함", value=False)
+    include_reg = st.checkbox("다중회귀 포함", value=False)
+    include_pca = st.checkbox("PCA 포함", value=False)
+    include_stl = st.checkbox("계절성(STL) 포함", value=False)
+    corr_freq_label = st.selectbox("고급 분석 집계 간격(상관/회귀)", ["15분", "30분", "1시간"], index=2)
+    freq_map = {"15분": "15T", "30분": "30T", "1시간": "1H"}
+    agg_freq = freq_map[corr_freq_label]
+    stl_device = None
+    if include_stl:
+        choices = sorted(period_df['loadcel'].unique().tolist()) if not period_df.empty else []
+        stl_device = st.selectbox("STL 대상 장비", choices) if choices else None
     if period_df.empty:
         st.info("해당 기간에 데이터가 없습니다.")
     else:
@@ -282,7 +304,8 @@ if not df.empty:
         def dataframe_to_pdf(df, title="보고서", font_path=None, font_name="CustomFont",
                             include_stats=True, stats_df=None,
                             include_outlier=True, outlier_df=None,
-                            include_graph=True, graph_fig=None):
+                            include_graph=True, graph_fig=None,
+                            adv_images=None, regression_df=None):
             pdf = FPDF()
             pdf.add_page()
             if font_path:
@@ -645,6 +668,33 @@ if not df.empty:
                 # 무게 변화 기록 바로 밑에 푸터 추가
                 add_professional_footer()
             
+            # --- 고급 통계 이미지(순차 삽입) ---
+            if adv_images:
+                for caption, img_path in adv_images:
+                    pdf.add_page()
+                    add_logo_to_page()
+                    pdf.set_font(font_name, '', 14)
+                    pdf.cell(0, 10, caption, ln=True)
+                    if os.path.exists(img_path):
+                        pdf.image(img_path, w=pdf.w - 20)
+                        pdf.ln(5)
+            # --- 회귀 결과 테이블 ---
+            if regression_df is not None and not regression_df.empty:
+                pdf.add_page()
+                add_logo_to_page()
+                pdf.set_font(font_name, '', 14)
+                pdf.cell(0, 10, '다중회귀 결과(계수, p-value)', ln=True)
+                pdf.set_font(font_name, '', 9)
+                cols = list(regression_df.columns)
+                col_width = pdf.w / (len(cols) + 1)
+                for c in cols:
+                    pdf.cell(col_width, 7, str(c), border=1)
+                pdf.ln()
+                for _, row in regression_df.iterrows():
+                    for c in cols:
+                        pdf.cell(col_width, 7, str(row[c])[:18], border=1)
+                    pdf.ln()
+
             tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
             pdf.output(tmpfile.name)
             tmpfile.seek(0)
@@ -678,6 +728,141 @@ if not df.empty:
             with col2:
                 if st.button("🚀 PDF 생성 및 다운로드", type="primary", use_container_width=True):
                     with st.spinner("PDF 생성 중..."):
+                        adv_images = []
+                        # ========== 고급 분석 이미지 생성 ==========
+                        # 공통 스타일
+                        import matplotlib.pyplot as plt
+                        from matplotlib import font_manager
+                        font_prop = None
+                        try:
+                            font_prop = font_manager.FontProperties(fname=selected_font_path)
+                            plt.rc('font', family=font_prop.get_name())
+                        except Exception:
+                            pass
+                        # 1) 상관관계
+                        if include_corr:
+                            try:
+                                tmp = period_df.copy().sort_values('timestamp')
+                                tmp['prev_weight'] = tmp.groupby('loadcel')['current_weight_history'].shift(1)
+                                tmp['usage'] = (tmp['prev_weight'] - tmp['current_weight_history']).clip(lower=0)
+                                df_res = (tmp.set_index('timestamp').groupby('loadcel').resample(agg_freq)['usage'].sum().reset_index())
+                                usage_wide = df_res.pivot(index='timestamp', columns='loadcel', values='usage').fillna(0)
+                                corr = usage_wide.corr()
+                                fig, ax = plt.subplots(figsize=(6, 5))
+                                im = ax.imshow(corr.values, cmap='RdBu', vmin=-1, vmax=1)
+                                ax.set_xticks(range(len(corr.columns)))
+                                ax.set_yticks(range(len(corr.index)))
+                                ax.set_xticklabels(corr.columns)
+                                ax.set_yticklabels(corr.index)
+                                plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+                                fig.colorbar(im, ax=ax)
+                                ax.set_title('장비별 사용량 상관관계')
+                                img_path_corr = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                                fig.tight_layout(); fig.savefig(img_path_corr, dpi=200); plt.close(fig)
+                                adv_images.append(('상관관계 분석', img_path_corr))
+                            except Exception:
+                                pass
+                        # 2) 트렌드(기울기)
+                        if include_trend_adv:
+                            try:
+                                slopes = []
+                                for did, grp in period_df.sort_values('timestamp').groupby('loadcel'):
+                                    if len(grp) < 2:
+                                        continue
+                                    t_hours = (pd.to_datetime(grp['timestamp']) - pd.to_datetime(grp['timestamp']).min()).dt.total_seconds()/3600.0
+                                    y = grp['current_weight_history']
+                                    m, b = np.polyfit(t_hours, y, 1)
+                                    slopes.append((did, m))
+                                if slopes:
+                                    s_df = pd.DataFrame(slopes, columns=['loadcel', 'slope_g_per_hour']).sort_values('slope_g_per_hour')
+                                    fig, ax = plt.subplots(figsize=(6, 4))
+                                    ax.bar(s_df['loadcel'].astype(str), s_df['slope_g_per_hour'])
+                                    ax.set_title('장비별 기울기(g/시간)')
+                                    ax.set_ylabel('slope')
+                                    plt.xticks(rotation=45)
+                                    img_path_trend = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                                    fig.tight_layout(); fig.savefig(img_path_trend, dpi=200); plt.close(fig)
+                                    adv_images.append(('트렌드 분석(기울기)', img_path_trend))
+                            except Exception:
+                                pass
+                        # 3) KMeans
+                        if include_kmeans:
+                            try:
+                                feat = period_df.copy().sort_values('timestamp')
+                                feat['prev_weight'] = feat.groupby('loadcel')['current_weight_history'].shift(1)
+                                feat['usage'] = (feat['prev_weight'] - feat['current_weight_history']).clip(lower=0)/1000
+                                agg = feat.groupby('loadcel').agg(mean_usage=('usage','mean'), std_usage=('usage','std')).fillna(0)
+                                if len(agg) >= 2:
+                                    scaler = StandardScaler(); X = scaler.fit_transform(agg.values)
+                                    k = min(4, max(2, len(agg)))
+                                    km = KMeans(n_clusters=k, n_init='auto', random_state=42)
+                                    labels = km.fit_predict(X)
+                                    fig, ax = plt.subplots(figsize=(6,4))
+                                    scatter = ax.scatter(agg['mean_usage'], agg['std_usage'], c=labels, cmap='tab10')
+                                    for i, idx in enumerate(agg.index):
+                                        ax.annotate(str(idx), (agg['mean_usage'][i], agg['std_usage'][i]))
+                                    ax.set_xlabel('mean_usage(kg)'); ax.set_ylabel('std_usage(kg)'); ax.set_title('KMeans 클러스터링')
+                                    img_path_km = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                                    fig.tight_layout(); fig.savefig(img_path_km, dpi=200); plt.close(fig)
+                                    adv_images.append(('장비 클러스터링(KMeans)', img_path_km))
+                            except Exception:
+                                pass
+                        # 4) 회귀
+                        reg_df = None
+                        if include_reg:
+                            try:
+                                tmp = period_df.copy().sort_values('timestamp')
+                                tmp['prev_weight'] = tmp.groupby('loadcel')['current_weight_history'].shift(1)
+                                tmp['usage'] = (tmp['prev_weight'] - tmp['current_weight_history']).clip(lower=0)/1000
+                                df_res = (tmp.set_index('timestamp').groupby('loadcel').resample(agg_freq)['usage'].sum().reset_index())
+                                df_res['hour'] = pd.to_datetime(df_res['timestamp']).dt.hour
+                                df_res['weekday'] = pd.to_datetime(df_res['timestamp']).dt.weekday
+                                X = pd.get_dummies(df_res[['hour','weekday']], columns=['hour','weekday'], drop_first=True)
+                                y = df_res['usage'].fillna(0)
+                                X = sm.add_constant(X, has_constant='add')
+                                model = sm.OLS(y, X).fit()
+                                reg_df = pd.DataFrame({'coef': model.params, 'pvalue': model.pvalues}).reset_index().rename(columns={'index':'term'})
+                            except Exception:
+                                pass
+                        # 5) PCA
+                        if include_pca:
+                            try:
+                                feat = period_df.copy().sort_values('timestamp')
+                                feat['prev_weight'] = feat.groupby('loadcel')['current_weight_history'].shift(1)
+                                feat['usage'] = (feat['prev_weight'] - feat['current_weight_history']).clip(lower=0)/1000
+                                agg = feat.groupby('loadcel').agg(mean_usage=('usage','mean'), std_usage=('usage','std')).fillna(0)
+                                if len(agg) >= 2:
+                                    X = StandardScaler().fit_transform(agg.values)
+                                    p = PCA(n_components=2, random_state=42).fit_transform(X)
+                                    fig, ax = plt.subplots(figsize=(6,4))
+                                    ax.scatter(p[:,0], p[:,1])
+                                    for i, idx in enumerate(agg.index):
+                                        ax.annotate(str(idx), (p[i,0], p[i,1]))
+                                    ax.set_title('PCA (장비 특성)'); ax.set_xlabel('PC1'); ax.set_ylabel('PC2')
+                                    img_path_pca = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                                    fig.tight_layout(); fig.savefig(img_path_pca, dpi=200); plt.close(fig)
+                                    adv_images.append(('PCA 시각화', img_path_pca))
+                            except Exception:
+                                pass
+                        # 6) STL
+                        if include_stl and stl_device is not None:
+                            try:
+                                s = period_df[period_df['loadcel']==stl_device].sort_values('timestamp')
+                                if len(s) > 24:
+                                    ts = s[['timestamp','current_weight_history']].dropna()
+                                    ts = ts.set_index('timestamp')
+                                    ts = ts.asfreq('T')
+                                    ts['current_weight_history'] = ts['current_weight_history'].interpolate(limit_direction='both')
+                                    stl = STL(ts['current_weight_history'], period=1440).fit()
+                                    fig, axs = plt.subplots(3,1, figsize=(7,6), sharex=True)
+                                    axs[0].plot(stl.trend); axs[0].set_title('Trend')
+                                    axs[1].plot(stl.seasonal); axs[1].set_title('Seasonal')
+                                    axs[2].plot(stl.resid); axs[2].set_title('Residual')
+                                    img_path_stl = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                                    fig.tight_layout(); fig.savefig(img_path_stl, dpi=200); plt.close(fig)
+                                    adv_images.append((f'STL 분해 (장비 {stl_device})', img_path_stl))
+                            except Exception:
+                                pass
                         pdf_file = dataframe_to_pdf(
                             period_df,
                             title=f"{selected_label} 보고서",
@@ -687,7 +872,9 @@ if not df.empty:
                             stats_df=stats_df,
                             include_outlier=include_outlier,
                             outlier_df=outlier_df,
-                            include_graph=include_graph
+                            include_graph=include_graph,
+                            adv_images=adv_images,
+                            regression_df=reg_df
                         )
                         st.session_state['pdf_bytes'] = pdf_file.read()
                     st.success("✅ PDF 생성이 완료되었습니다! 아래에서 다운로드하세요.")
