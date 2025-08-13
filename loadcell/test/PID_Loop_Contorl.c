@@ -72,15 +72,17 @@ static inline float fast_cos_small(float x) {
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-// UART 통신 변수
-char uart_buf[8];
-char re_data[8];
+// UART 통신 변수(미사용 제거)
 char uwb_buf[4];   // UWB 4바이트 순환 패킷 (UART4)
-char fe_data[5];   // UWB 파싱 임시 버퍼 (NULL 포함)
-float uwb_data;
-int x_data, y_data;
-float w_L, w_R;
-uint32_t PWM1_value, PWM2_value;
+// UART4 DMA 수신 버퍼(옵션)
+#if USE_UART4_DMA_RX
+volatile uint8_t uwb_dma_buf[64];
+#endif
+// 미사용 변수 제거: uwb_data, x/y_data, w_L/w_R, PWM1/2_value
+
+// UWB 파싱을 메인 루프로 옮기기 위한 플래그/버퍼
+volatile uint8_t uwb_ready = 0;
+volatile char uwb_packet[4];
 
 // 제어 파라미터
 #define V_MAX 0.35f
@@ -97,10 +99,29 @@ uint32_t PWM1_value, PWM2_value;
 #define Kd_vel 0.05f   // 미분 게인도 낮춤
 #define CONTROL_DT 0.05f
 #define VELOCITY_DT 0.01f  // 100Hz → 100Hz로 변경 (1ms → 10ms)
-#define TIM3_ARR 399.0f  // TIM3 자동재장전 값
-#define ANTI_WINDUP 100.0f  // PID 출력 제한에 맞춤
+#define D_LPF_TAU 0.02f  // 미분항 저역통과 필터 시간상수(초)
+#define ANTI_WINDUP 100.0f  // PID 출력 제한에 맞춤(Back-calculation 병행 시 여유 확대)
 #define MIN_PWM_DUTY 0.07f  // 최소 PWM 듀티 (7%) - 회전 토크 보장
 #define PWM_DEADBAND 0.05f  // PWM Deadband (5%)
+#define W_ABS_MAX 1.0f       // 최대 각속도 제한 (rad/s)
+#define W_SLEW_MAX 2.0f      // 각속도 슬루 제한(slew=최대변화율) (rad/s^2)
+#define LOG_ENABLE 0
+
+// 선택적 기능 매크로
+#define USE_TIM6_CONTROL 0          // 1로 설정 시 제어 주기를 TIM6 베이스 타이머로 분리
+#define ENABLE_CPU_CACHE 1          // F7 캐시 활성화
+#define UWB_TIMEOUT_MS 200U         // UWB 미수신 타임아웃
+#define THETA_TIMEOUT_MS 300U       // 각도 미수신 타임아웃
+#define ENC_LPF_TAU 0.03f           // 엔코더 속도 LPF 시간상수(초)
+#define KFF_GAIN 1.0f               // 피드포워드 비례 게인(기본 1.0)
+#define KFF_OFFSET 0.0f             // 피드포워드 오프셋(비율, 0.0~0.1 권장)
+#define PWM_MAX_RATIO 0.35f         // PWM 최대 비율(FF/출력 포화 공용)
+#define LOG_USE_DMA 1               // 로그 전송 시 DMA 사용
+#define CONFIGURE_NVIC_PRIO 0       // NVIC 우선순위 재설정 사용 여부
+#define RAMP_RELEASE_MS 400U        // EMG 해제 램프업 시간(ms)
+#define USE_UART4_DMA_RX 0          // UART4 UWB 수신을 DMA+IDLE로 전환
+#undef LOG_ENABLE
+#define LOG_ENABLE 0
 
 // 거리별 제어 모드 정의
 typedef enum {
@@ -135,6 +156,8 @@ volatile float integral_L = 0.0f;
 volatile float integral_R = 0.0f;
 volatile float prev_error_L = 0.0f;
 volatile float prev_error_R = 0.0f;
+volatile float d_state_L = 0.0f;
+volatile float d_state_R = 0.0f;
 
 // 적응형 보정 변수
 volatile float pwm_bias_L = 0.0f;
@@ -150,6 +173,8 @@ volatile uint32_t large_angle_timer = 0;
 volatile uint8_t emergency_stop_flag = 0;
 volatile float prev_dis = 0.8f;
 volatile float prev_theta = 0.0f;
+volatile uint32_t large_angle_start_ms = 0;  // 큰 각도 유지 시작 시각(ms)
+volatile uint32_t emergency_stop_start_ms = 0;  // EMG 해제 타이머(ms)
 
 // UWB 거리 및 각도 변수
 volatile float dis = 0.8f;
@@ -169,6 +194,9 @@ const float r = 0.0575f;
 const float b = 0.257f;
 
 static uint32_t boot_ms = 0;
+static float last_velocity_dt = VELOCITY_DT; // PID dt 일관화용 전역 스냅샷 (모터 제어에서 사용)
+static uint32_t last_uwb_ms = 0;   // UWB 수신 시각
+static uint32_t last_theta_ms = 0; // 각도 수신 시각
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -176,7 +204,7 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 // 제어 함수 프로토타입
 float slew_rate_limit(float v_new, float v_old, float a_max, float dt);
-float pid_control(float setpoint, float measurement, float dt, float* integral, float* prev_error, float kp, float ki, float kd);
+float pid_control(float setpoint, float measurement, float dt, float* integral, float* prev_error, float* d_state, float kp, float ki, float kd);
 float distance_control(float dis, float dt);
 void curvature_based_control(float dis, float theta, float dt);
 void advanced_safety_check(float dis, float theta, float dt);
@@ -196,7 +224,11 @@ void outer_loop_control(void);
 // --- 인터럽트 및 콜백 함수 ---
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+    #if USE_TIM6_CONTROL
+    if (htim->Instance == TIM6) {
+    #else
     if (htim->Instance == TIM1) {
+    #endif
         // 100Hz 내부 루프 + 20Hz 외부 루프 통합
         inner_loop_control();
         
@@ -210,31 +242,24 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-    // UWB: UART4, 4바이트 순환 패킷 → '.' 기준 재정렬 후 파싱
+    #if !USE_UART4_DMA_RX
+    // UWB: UART4, 4바이트 순환 패킷 → ISR에서는 복사/플래그만 설정, 파싱은 메인루프
     if (huart->Instance == UART4) {
-        for (int i = 0; i < 4; i++) {
-            if (uwb_buf[(i + 1) % 4] == '.') {
-                for (int j = 0; j < 4; j++) {
-                    fe_data[j] = uwb_buf[(i + j) % 4];
-                }
-            }
-        }
-        fe_data[4] = '\0';
-        float parsed = dis;
-        if (sscanf(fe_data, "%f", &parsed) == 1) {
-            parsed = roundf(parsed * 100.0f) / 100.0f;
-            dis = parsed;
-        }
+        for (int i = 0; i < 4; i++) { uwb_packet[i] = uwb_buf[i]; }
+        uwb_ready = 1;
+        last_uwb_ms = HAL_GetTick();
         HAL_UART_Receive_IT(&huart4, (uint8_t*)uwb_buf, 4);
     }
+    #endif
     // Husky: USART2, '.' 종단 처리
     if (huart->Instance == USART2) {
-        if (rx_byte == '.') {
+        if (rx_byte == '.' || rx_byte == '/' || rx_byte == '\n' || rx_byte == '\r') {
             if (rx_index >= 1 && rx_index < sizeof(rx_buf)) {
                 rx_buf[rx_index] = rx_byte;
                 rx_buf[rx_index + 1] = '\0';
                 rx_flag = 1;
                 rx_index = 0;
+                last_theta_ms = HAL_GetTick();
             } else {
                 rx_index = 0;
             }
@@ -249,6 +274,27 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     }
 }
 
+#if USE_UART4_DMA_RX
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+    if (huart->Instance == UART4) {
+        // 간단 처리: 마지막 4바이트를 패킷 후보로 사용
+        if (Size >= 4) {
+            __disable_irq();
+            for (int i = 0; i < 4; i++) {
+                uwb_packet[i] = uwb_dma_buf[Size - 4 + i];
+            }
+            __enable_irq();
+            uwb_ready = 1;
+            last_uwb_ms = HAL_GetTick();
+        }
+        // 다음 수신 재개
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart4, (uint8_t*)uwb_dma_buf, sizeof(uwb_dma_buf));
+        __HAL_DMA_DISABLE_IT(huart4.hdmarx, DMA_IT_HT);
+    }
+}
+#endif
+
 // --- 제어 함수 구현 ---
 float slew_rate_limit(float v_new, float v_old, float a_max, float dt) {
     float dv_max = a_max * dt;
@@ -257,14 +303,16 @@ float slew_rate_limit(float v_new, float v_old, float a_max, float dt) {
     return v_new;
 }
 
-float pid_control(float setpoint, float measurement, float dt, float* integral, float* prev_error, float kp, float ki, float kd) {
+float pid_control(float setpoint, float measurement, float dt, float* integral, float* prev_error, float* d_state, float kp, float ki, float kd) {
     float error = setpoint - measurement;
-    float integral_temp = *integral + error * dt;
-    if (integral_temp > ANTI_WINDUP) integral_temp = ANTI_WINDUP;
-    else if (integral_temp < -ANTI_WINDUP) integral_temp = -ANTI_WINDUP;
-    *integral = integral_temp;
-    float derivative = (error - *prev_error) / dt;
-    float output = kp * error + ki * (*integral) + kd * derivative;
+    // 조건부 적분(Integral Separation): 포화 해제 방향에서만 적분. 여기서는 간단화를 위해 항상 적분하되
+    // back-calculation이 병행되어 과도 적분이 교정됨. 필요 시 출력/오차 방향성으로 조건부 확장 가능.
+    *integral += error * dt;
+    // D 항: de/dt 저역통과 필터
+    float de_dt = (error - *prev_error) / dt;
+    float alpha = dt / (D_LPF_TAU + dt);
+    *d_state = *d_state + alpha * (de_dt - *d_state);
+    float output = kp * error + ki * (*integral) + kd * (*d_state);
     *prev_error = error;
     return output;
 }
@@ -362,6 +410,17 @@ void curvature_based_control(float dis, float theta, float dt) {
     // w_ref = v_ref * kappa (이미지 수식)
     w_ref = v_ref * kappa;
 
+    // w_ref 제한 및 슬루 적용
+    {
+        static float w_prev_local = 0.0f;
+        if (w_ref > W_ABS_MAX) w_ref = W_ABS_MAX;
+        else if (w_ref < -W_ABS_MAX) w_ref = -W_ABS_MAX;
+        float dw_max = W_SLEW_MAX * dt;
+        if (w_ref - w_prev_local > dw_max) w_ref = w_prev_local + dw_max;
+        else if (w_prev_local - w_ref > dw_max) w_ref = w_prev_local - dw_max;
+        w_prev_local = w_ref;
+    }
+
     // ----- 기존 단순제어 코드 (참고용, 주석처리) -----
     /*
     // 허스키렌즈 각도 직접 비례 회전 (이전 방식)
@@ -380,6 +439,11 @@ void curvature_based_control(float dis, float theta, float dt) {
 
 void advanced_safety_check(float dis, float theta, float dt) {
     float theta_abs = fabsf(theta);
+    uint32_t now_ms = HAL_GetTick();
+    static uint32_t large_angle_start_ms_local = 0;
+    static uint32_t emg_start_ms_local = 0;
+    static uint8_t release_ramping = 0;
+    static uint32_t release_start_ms = 0;
     
     // 거리 기반 안전 체크 (새로운 다단계 로직과 연동)
     if (dis < 0.10f) {  // 10cm 이하: 긴급 정지
@@ -399,25 +463,40 @@ void advanced_safety_check(float dis, float theta, float dt) {
         emergency_stop_flag = 1; 
     }
     if (theta_abs > 60.0f) {
-        large_angle_timer++;
-        if (large_angle_timer > 2000) { 
+        if (large_angle_start_ms_local == 0) large_angle_start_ms_local = now_ms;
+        if (now_ms - large_angle_start_ms_local > 2000U) {
             v_ref = 0.0f; 
             w_ref = 0.0f; 
             emergency_stop_flag = 1; 
         }
     } else {
-        large_angle_timer = 0;
+        large_angle_start_ms_local = 0;
     }
     
     // 긴급 정지 해제 조건
     if (emergency_stop_flag) {
-        emergency_stop_timer++;
-        if (emergency_stop_timer > 100) {
+        if (emg_start_ms_local == 0) emg_start_ms_local = now_ms;
+        if (now_ms - emg_start_ms_local > 1000U) {
             if (dis >= 0.20f && dis <= 1.5f && theta_abs <= 60.0f) {
                 emergency_stop_flag = 0;
-                emergency_stop_timer = 0;
-                large_angle_timer = 0;
+                emg_start_ms_local = 0;
+                // EMG 해제 램프업 시작
+                release_ramping = 1;
+                release_start_ms = now_ms;
             }
+        }
+    } else {
+        emg_start_ms_local = 0;
+    }
+
+    // 해제 램프업: v_ref/w_ref를 서서히 복귀
+    if (release_ramping) {
+        uint32_t elapsed = now_ms - release_start_ms;
+        float ramp = (elapsed >= RAMP_RELEASE_MS) ? 1.0f : (float)elapsed / (float)RAMP_RELEASE_MS;
+        v_ref *= ramp;
+        w_ref *= ramp;
+        if (elapsed >= RAMP_RELEASE_MS) {
+            release_ramping = 0;
         }
     }
 }
@@ -438,13 +517,20 @@ void motor_control(void) {
         return;
     }
     
-    // ① Feed-forward PWM 계산 (목표 속도 → PWM)
-    float pwm_ff_L = (omega_L_ref / MAX_RAD_S) * htim1.Init.Period;  // 선형 매핑
-    float pwm_ff_R = (omega_R_ref / MAX_RAD_S) * htim1.Init.Period;
+    // ① Feed-forward PWM 계산 (목표 속도 → PWM): 비례 + 오프셋(기동 토크/데드존 보정)
+    float period = htim1.Init.Period;
+    float pwm_ff_L = ((omega_L_ref / MAX_RAD_S) * KFF_GAIN) * (period * PWM_MAX_RATIO);
+    float pwm_ff_R = ((omega_R_ref / MAX_RAD_S) * KFF_GAIN) * (period * PWM_MAX_RATIO);
+    if (fabsf(omega_L_ref) > 0.0f) {
+        pwm_ff_L += copysignf(KFF_OFFSET * period, omega_L_ref);
+    }
+    if (fabsf(omega_R_ref) > 0.0f) {
+        pwm_ff_R += copysignf(KFF_OFFSET * period, omega_R_ref);
+    }
     
     // ② PID 보정 PWM 계산 (속도 오차 → ΔPWM)
-    float pid_output_L = pid_control(omega_L_ref, omega_L_meas, VELOCITY_DT, &integral_L, &prev_error_L, Kp_vel, Ki_vel, Kd_vel);
-    float pid_output_R = pid_control(omega_R_ref, omega_R_meas, VELOCITY_DT, &integral_R, &prev_error_R, Kp_vel, Ki_vel, Kd_vel);
+    float pid_output_L = pid_control(omega_L_ref, omega_L_meas, last_velocity_dt, &integral_L, &prev_error_L, &d_state_L, Kp_vel, Ki_vel, Kd_vel);
+    float pid_output_R = pid_control(omega_R_ref, omega_R_meas, last_velocity_dt, &integral_R, &prev_error_R, &d_state_R, Kp_vel, Ki_vel, Kd_vel);
     
     // PID 출력을 ΔPWM으로 제한 (±100 tick 정도)
     const float PID_LIMIT = 100.0f;
@@ -452,23 +538,58 @@ void motor_control(void) {
     pid_output_R = fmaxf(fminf(pid_output_R, PID_LIMIT), -PID_LIMIT);
     
     // ③ 최종 PWM 합성 (Feed-forward + PID + Bias)
-    float pwm_L = pwm_ff_L + pid_output_L + pwm_bias_L;
-    float pwm_R = -(pwm_ff_R + pid_output_R) + pwm_bias_R;  // 오른쪽은 하드웨어 부호 반전
+    float pwm_L_unsat = pwm_ff_L + pid_output_L + pwm_bias_L;
+    float pwm_R_unsat = -(pwm_ff_R + pid_output_R) + pwm_bias_R;  // 오른쪽은 하드웨어 부호 반전
+    float pwm_L = pwm_L_unsat;
+    float pwm_R = pwm_R_unsat;
     
     // ④ 대칭 포화 (최대 35%)
-    const float PWM_MAX = htim1.Init.Period * 0.35f;
+    const float PWM_MAX = htim1.Init.Period * PWM_MAX_RATIO;
     pwm_L = fmaxf(fminf(pwm_L, PWM_MAX), -PWM_MAX);
     pwm_R = fmaxf(fminf(pwm_R, PWM_MAX), -PWM_MAX);
     
-    // PWM Deadband 적용 (방향 핀 플리커 방지)
-    if (fabsf(pwm_L) < PWM_DEADBAND * htim1.Init.Period) pwm_L = 0.0f;
-    if (fabsf(pwm_R) < PWM_DEADBAND * htim1.Init.Period) pwm_R = 0.0f;
-    
-    // 최소 듀티 바닥깔기 (출발 토크 보장)
-    if (pwm_L > 0 && pwm_L < MIN_PWM_DUTY * htim1.Init.Period) pwm_L = MIN_PWM_DUTY * htim1.Init.Period;
-    if (pwm_L < 0 && pwm_L > -MIN_PWM_DUTY * htim1.Init.Period) pwm_L = -MIN_PWM_DUTY * htim1.Init.Period;
-    if (pwm_R > 0 && pwm_R < MIN_PWM_DUTY * htim1.Init.Period) pwm_R = MIN_PWM_DUTY * htim1.Init.Period;
-    if (pwm_R < 0 && pwm_R > -MIN_PWM_DUTY * htim1.Init.Period) pwm_R = -MIN_PWM_DUTY * htim1.Init.Period;
+    // 조건부 적분(Integral Separation): 포화 유지 방향이면 이번 주기 적분을 취소
+    {
+        float error_L = omega_L_ref - omega_L_meas;
+        float error_R = omega_R_ref - omega_R_meas;
+        uint8_t sat_pos_L = (pwm_L_unsat > PWM_MAX);
+        uint8_t sat_neg_L = (pwm_L_unsat < -PWM_MAX);
+        uint8_t sat_pos_R = (pwm_R_unsat > PWM_MAX);
+        uint8_t sat_neg_R = (pwm_R_unsat < -PWM_MAX);
+        uint8_t block_int_L = (sat_pos_L && (error_L > 0.0f)) || (sat_neg_L && (error_L < 0.0f));
+        uint8_t block_int_R = (sat_pos_R && (error_R > 0.0f)) || (sat_neg_R && (error_R < 0.0f));
+        if (block_int_L) { integral_L -= error_L * last_velocity_dt; }
+        if (block_int_R) { integral_R -= error_R * last_velocity_dt; }
+    }
+
+    // 최소 듀티 스냅 후 히스테리시스 deadband 적용
+    {
+        float dead_th_on = PWM_DEADBAND * htim1.Init.Period;
+        float dead_th_off = dead_th_on * 0.6f;
+        float min_ticks = MIN_PWM_DUTY * htim1.Init.Period;
+        // 최소 듀티 스냅
+        if (fabsf(pwm_L) > 0.0f && fabsf(pwm_L) < min_ticks) pwm_L = (pwm_L >= 0.0f) ? min_ticks : -min_ticks;
+        if (fabsf(pwm_R) > 0.0f && fabsf(pwm_R) < min_ticks) pwm_R = (pwm_R >= 0.0f) ? min_ticks : -min_ticks;
+        // 히스테리시스 deadband
+        static uint8_t holdL = 0, holdR = 0;
+        if (!holdL && fabsf(pwm_L) < dead_th_off) { pwm_L = 0.0f; }
+        else if (fabsf(pwm_L) > dead_th_on) { holdL = 1; }
+        else if (fabsf(pwm_L) < dead_th_off) { holdL = 0; }
+        if (!holdR && fabsf(pwm_R) < dead_th_off) { pwm_R = 0.0f; }
+        else if (fabsf(pwm_R) > dead_th_on) { holdR = 1; }
+        else if (fabsf(pwm_R) < dead_th_off) { holdR = 0; }
+    }
+
+    // Anti-windup: back-calculation 단일 방식으로 통일
+    {
+        const float Kb = 0.1f;
+        if (Ki_vel > 0.0f) {
+            float corrL = (pwm_L - pwm_L_unsat) * (Kb / Ki_vel);
+            float corrR = (pwm_R - pwm_R_unsat) * (Kb / Ki_vel);
+            integral_L += corrL;
+            integral_R += corrR;
+        }
+    }
     
     // 최종 PWM 출력
     if (pwm_L >= 0) {
@@ -566,9 +687,10 @@ void enable_adaptive_correction(void) {
 }
 
 void log_control_data(void) {
-    // uint32_t now = HAL_GetTick();
-    // uint32_t boot_elapsed = now - boot_ms;
-    // char log_buf[128];
+    #if LOG_ENABLE
+    uint32_t now = HAL_GetTick();
+    uint32_t boot_elapsed = now - boot_ms;
+    char log_buf[128];
     
     // // sprintf 최적화: 정수 연산 우선, 부동소수점 최소화
     // int v_ref_int = (int)(v_ref * 100);  // 0.01 단위로 정수 변환
@@ -605,23 +727,21 @@ void log_control_data(void) {
     // const char* mode_str[] = {"EMG", "BWD", "STP", "TRK", "FWD"};
     // const char* current_mode_str = (current_mode < 5) ? mode_str[current_mode] : "UNK";
     
-    // // sprintf(log_buf, "T:%lu V:%d.%02d W:%d.%02d OL:%d.%01d OR:%d.%01d PL:%d.%01d PR:%d.%01d PWM:%d%% %d%% %s %s\r\n",
-    // //         boot_elapsed, 
-    // //         v_ref_int/100, v_ref_int%100,
-    // //         w_ref_int/100, w_ref_int%100,
-    // //         omega_L_int/10, omega_L_int%10,
-    // //         omega_R_int/10, omega_R_int%10,
-    // //         pwm_bias_L_int/10, pwm_bias_L_int%10,
-    // //         pwm_bias_R_int/10, pwm_bias_R_int%10,
-    // //         pwm_L_int, pwm_R_int,
-    // //         (boot_elapsed < SOFT_START_TIME_MS) ? "SOFT" : "NORM",
-    // //         current_mode_str);
-    // HAL_UART_Transmit(&huart2, (uint8_t*)log_buf, strlen(log_buf), 100);
+    // sprintf(log_buf, "T:%lu V:%d.%02d W:%d.%02d\r\n", boot_elapsed, v_ref_int/100, v_ref_int%100, w_ref_int/100, w_ref_int%100);
+    #if LOG_USE_DMA
+    // DMA TX (비차단)
+    HAL_UART_Transmit_DMA(&huart2, (uint8_t*)log_buf, strlen(log_buf));
+    #else
+    HAL_UART_Transmit(&huart2, (uint8_t*)log_buf, strlen(log_buf), 100);
+    #endif
+    #endif
 }
 
 void read_encoders(void) {
     int32_t cntL = (int32_t)__HAL_TIM_GET_COUNTER(&htim2);
     int32_t cntR = (int32_t)__HAL_TIM_GET_COUNTER(&htim4);
+    static uint32_t last_time_ms = 0;
+    uint32_t now_time_ms = HAL_GetTick();
     
     // 엔코더 초기화 (첫 번째 호출 시)
     if (!encoder_initialized) {
@@ -630,6 +750,7 @@ void read_encoders(void) {
         encoder_initialized = 1;
         omega_L_meas = 0.0f;
         omega_R_meas = 0.0f;
+        last_time_ms = now_time_ms;
         return;  // 첫 번째는 변화량이 0이므로 스킵
     }
     
@@ -639,10 +760,20 @@ void read_encoders(void) {
     encL_prev = cntL;
     encR_prev = cntR;
     
-    // 부동소수점 연산 최적화: 상수 미리 계산
-    const float ENCODER_SCALE = 2.0f * PI / (CPR * VELOCITY_DT);
-    omega_L_meas = (float)diffL * ENCODER_SCALE;
-    omega_R_meas = (float)diffR * ENCODER_SCALE;
+    // 실제 dt 기반 속도 계산
+    float dt = (now_time_ms - last_time_ms) / 1000.0f;
+    if (dt <= 0.0f) dt = VELOCITY_DT;
+    last_time_ms = now_time_ms;
+    static float omega_L_filt = 0.0f, omega_R_filt = 0.0f;
+    const float ENCODER_SCALE = 2.0f * PI / (CPR * dt);
+    float omega_L_raw = (float)diffL * ENCODER_SCALE;
+    float omega_R_raw = (float)diffR * ENCODER_SCALE;
+    float alpha = dt / (ENC_LPF_TAU + dt);
+    omega_L_filt = omega_L_filt + alpha * (omega_L_raw - omega_L_filt);
+    omega_R_filt = omega_R_filt + alpha * (omega_R_raw - omega_R_filt);
+    omega_L_meas = omega_L_filt;
+    omega_R_meas = omega_R_filt;
+    last_velocity_dt = dt;
     
     adaptive_speed_correction();
 }
@@ -671,7 +802,13 @@ void inner_loop_control(void) {
 
 void outer_loop_control(void) {
     uint32_t now = HAL_GetTick();
-    curvature_based_control(dis, theta, CONTROL_DT);
+    // 공유 변수 스냅샷(더블버퍼 대체): 짧은 크리티컬 섹션으로 일관성 확보
+    float dis_s, theta_s;
+    __disable_irq();
+    dis_s = dis;
+    theta_s = theta;
+    __enable_irq();
+    curvature_based_control(dis_s, theta_s, CONTROL_DT);
     if (now - boot_ms < SOFT_START_TIME_MS) {
         if (w_ref > 1.0f) w_ref = 1.0f;
         if (w_ref < -1.0f) w_ref = -1.0f;
@@ -700,6 +837,10 @@ int main(void)
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
   /* USER CODE BEGIN Init */
+  #if ENABLE_CPU_CACHE
+  SCB_EnableICache();
+  SCB_EnableDCache();
+  #endif
   /* USER CODE END Init */
   /* Configure the system clock */
   SystemClock_Config();
@@ -716,17 +857,60 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   boot_ms = HAL_GetTick();
+  #if USE_TIM6_CONTROL
+  HAL_TIM_Base_Start_IT(&htim6);   // 제어 주기(100Hz)는 TIM6으로 분리
+  #else
   HAL_TIM_Base_Start_IT(&htim1);  // TIM1만 사용 (100Hz 내부 + 20Hz 외부 루프)
+  #endif
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
   HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
   enable_adaptive_correction();
+  #if USE_UART4_DMA_RX
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart4, (uint8_t*)uwb_dma_buf, sizeof(uwb_dma_buf));
+  __HAL_DMA_DISABLE_IT(huart4.hdmarx, DMA_IT_HT);
+  #else
   HAL_UART_Receive_IT(&huart4, (uint8_t*)uwb_buf, 4);  // UWB (UART4)
+  #endif
   HAL_UART_Receive_IT(&huart2, &rx_byte, 1);          // Husky (USART2)
   /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+      // 입력 신뢰도 타임아웃 체크
+      uint32_t now_ms = HAL_GetTick();
+      // 센서 드롭: 즉시 안전 정지, 해제 조건은 advanced_safety_check 쪽 공통 로직으로 일원화
+      if ((last_uwb_ms > 0 && now_ms - last_uwb_ms > UWB_TIMEOUT_MS) ||
+          (last_theta_ms > 0 && now_ms - last_theta_ms > THETA_TIMEOUT_MS)) {
+          v_ref = 0.0f;
+          w_ref = 0.0f;
+          emergency_stop_flag = 1;
+      }
+
+      if (uwb_ready) {
+          // 메인 루프에서 UWB 4바이트 패킷 파싱 (고정 소수점 스타일)
+          uwb_ready = 0;
+          char local0, local1, local2, local3;
+          __disable_irq();
+          local0 = uwb_packet[0]; local1 = uwb_packet[1];
+          local2 = uwb_packet[2]; local3 = uwb_packet[3];
+          __enable_irq();
+          int dot_idx = -1; int cnt = 0;
+          if (local0 == '.') { dot_idx = 0; cnt++; }
+          if (local1 == '.') { if (dot_idx < 0) dot_idx = 1; cnt++; }
+          if (local2 == '.') { if (dot_idx < 0) dot_idx = 2; cnt++; }
+          if (local3 == '.') { if (dot_idx < 0) dot_idx = 3; cnt++; }
+          if (cnt == 1) {
+              char o0, o1, o2, o3;
+              int start = (dot_idx + 3) & 3;
+              char arr[4] = {local0, local1, local2, local3};
+              o0 = arr[start]; o1 = arr[(start+1)&3]; o2 = arr[(start+2)&3]; o3 = arr[(start+3)&3];
+              if (o0 >= '0' && o0 <= '9' && o1 == '.' && o2 >= '0' && o2 <= '9' && o3 >= '0' && o3 <= '9') {
+                  float parsed = (float)(o0 - '0') + ((float)((o2 - '0')*10 + (o3 - '0'))) * 0.01f;
+                  dis = parsed; // DIS_MIN/DIS_MAX는 아래서 소프트 클램프
+              }
+          }
+      }
       if (rx_flag) {
           rx_flag = 0;
           // sscanf 제거 - 정수 파싱으로 대체 (메인 루프 최적화)
