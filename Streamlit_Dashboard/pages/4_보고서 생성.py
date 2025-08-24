@@ -82,10 +82,10 @@ render_alert_sidebar()
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📊 데이터 상태")
 try:
-    from utils.dummy_data_utils import is_dummy_data_available, get_dummy_data_summary
+    from utils.dummy_data_utils import is_additional_data_available, get_additional_data_summary
     
-    if is_dummy_data_available():
-        summary = get_dummy_data_summary()
+    if is_additional_data_available():
+        summary = get_additional_data_summary()
         if summary:
             st.sidebar.success("✅ 데이터 로드 완료")
             if 'loadcell_history' in summary:
@@ -105,9 +105,9 @@ except Exception as e:
 def get_history_df():
     # 추가 데이터와 실제 DB 데이터를 병합하여 반환
     try:
-        from utils.dummy_data_utils import get_combined_analysis_data, is_dummy_data_available
+        from utils.dummy_data_utils import get_combined_analysis_data, is_additional_data_available
         
-        if is_dummy_data_available():
+        if is_additional_data_available():
             # 추가 데이터 사용
             df = get_combined_analysis_data()
             # 성공 메시지는 표시하지 않음 (사용자에게는 투명하게)
