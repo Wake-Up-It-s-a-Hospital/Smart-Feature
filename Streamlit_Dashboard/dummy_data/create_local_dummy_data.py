@@ -38,13 +38,13 @@ def create_loadcell_dummy_data():
     
     data = {}
     
-    # 폴대 ID 2, 3, 4, 5번에 대한 더미데이터 생성
-    for pole_id in [2, 3, 4, 5]:
-        # 랜덤 수액 무게 (100g ~ 1000g)
-        current_weight = random.uniform(100, 1000)
+    # 폴대 ID 2~10번에 대한 더미데이터 생성
+    for pole_id in range(2, 11):
+        # 랜덤 수액 무게 (510g ~ 1250g)
+        current_weight = random.uniform(510, 1250)
         
         # 남은 시간 (무게 기반으로 계산, 30분 ~ 8시간)
-        remaining_hours = (current_weight / 1000) * 8
+        remaining_hours = (current_weight / 1250) * 8
         remaining_sec = int(remaining_hours * 3600)
         
         # 너스콜 상태 (10% 확률로 활성화)
@@ -71,8 +71,8 @@ def create_pole_stat_dummy_data():
     
     data = {}
     
-    # 폴대 ID 2, 3, 4, 5번에 대한 더미데이터 생성
-    for pole_id in [2, 3, 4, 5]:
+    # 폴대 ID 2~10번에 대한 더미데이터 생성
+    for pole_id in range(2, 11):
         # 배터리 레벨 (0~3, 대부분 2~3)
         battery_level = random.choices([0, 1, 2, 3], weights=[0.05, 0.15, 0.4, 0.4])[0]
         
@@ -103,21 +103,46 @@ def create_loadcell_history_dummy_data():
     
     data = []
     
-    # 폴대 ID 2, 3, 4, 5번에 대한 히스토리 데이터 생성
-    for pole_id in [2, 3, 4, 5]:
-        # 과거 24시간 동안의 데이터 생성 (1시간마다)
-        for hours_ago in range(24, 0, -1):
-            # 과거 시간
-            past_time = datetime.now(timezone(timedelta(hours=9))) - timedelta(hours=hours_ago)
+    # 폴대 ID 2~10번에 대한 히스토리 데이터 생성
+    for pole_id in range(2, 11):
+        print(f"🔄 폴대 {pole_id}번 히스토리 데이터 생성 중...")
+        
+        # 시작 무게 (510g ~ 1250g)
+        start_weight = random.uniform(510, 1250)
+        current_weight = start_weight
+        
+        # 과거 2500개 데이터 포인트 생성 (약 2.5일치, 1분마다)
+        for i in range(2500):
+            # 과거 시간 (현재로부터 2500분 전부터 1분씩)
+            minutes_ago = 2500 - i
+            past_time = datetime.now(timezone(timedelta(hours=9))) - timedelta(minutes=minutes_ago)
             timestamp = past_time.isoformat()
             
-            # 과거 수액 무게 (현재보다 많았을 것)
-            base_weight = random.uniform(800, 1200)  # 기본 무게
-            weight_decrease = (24 - hours_ago) * random.uniform(20, 40)  # 시간에 따른 감소
-            current_weight_history = max(100, base_weight - weight_decrease)
+            # 무게 변화 시뮬레이션
+            if i > 0:  # 첫 번째 데이터는 시작 무게 그대로
+                # 기본적으로 1분마다 10g 감소 (실제로는 1초마다 10g이므로 1분마다 600g 감소)
+                # 하지만 실제 수액은 그렇게 빠르게 감소하지 않으므로 1분마다 10g 정도로 조정
+                weight_change = -10  # 기본 감소량
+                
+                # ±4g 랜덤 변동
+                random_variation = random.uniform(-4, 4)
+                weight_change += random_variation
+                
+                # 가끔 증가하는 값 (15% 확률)
+                if random.random() < 0.15:
+                    weight_change = abs(weight_change)  # 양수로 변경하여 증가
+                    weight_change += random.uniform(0, 5)  # 추가 증가량
+                
+                # 무게 업데이트
+                current_weight += weight_change
+                
+                # 무게가 100g 이하로 떨어지면 해당 폴대 완료로 간주하고 중단
+                if current_weight <= 100:
+                    print(f"   ⏹️ 폴대 {pole_id}: 수액 완료 (무게: {current_weight:.1f}g) - 데이터 생성 중단")
+                    break
             
-            # 과거 남은 시간
-            remaining_hours = (current_weight_history / 1000) * 8
+            # 남은 시간 계산 (무게 기반)
+            remaining_hours = (current_weight / 1250) * 8
             remaining_sec_history = int(remaining_hours * 3600)
             
             # TTL (1주일 후 만료)
@@ -125,14 +150,21 @@ def create_loadcell_history_dummy_data():
             
             history_item = {
                 'loadcel': str(pole_id),
-                'current_weight_history': str(round(current_weight_history, 1)),
+                'current_weight_history': str(round(current_weight, 1)),
                 'remaining_sec_history': str(remaining_sec_history),
                 'timestamp': timestamp,
                 'expire_at': expire_at
             }
             
             data.append(history_item)
-            print(f"✅ 폴대 {pole_id}번 히스토리 {hours_ago}시간 전 데이터 생성 완료")
+            
+            # 진행상황 표시 (10%마다)
+            if i % 250 == 0:
+                print(f"   📊 폴대 {pole_id}: {i}/{2500} 완료 ({i/2500*100:.1f}%)")
+        
+        # 실제 생성된 데이터 개수 표시
+        actual_count = len([item for item in data if item['loadcel'] == str(pole_id)])
+        print(f"✅ 폴대 {pole_id}번 히스토리 {actual_count}개 생성 완료")
     
     return data
 
