@@ -1356,7 +1356,14 @@ with st.expander("장비 군집화", expanded=False):
                 st.dataframe(agg.reset_index().rename(columns={'loadcel': '장비'}), use_container_width=True)
                 # 2D 시각화: PCA 대신 2개 특성 산점(평균 vs 표준편차)
                 fig6 = px.scatter(agg.reset_index(), x='mean_usage', y='std_usage', color=agg['cluster'].astype(str), hover_data=['loadcel'])
-                fig6.update_layout(title="장비 클러스터링 (평균 vs 표준편차)")
+                fig6.update_layout(title="장비 클러스터링")
+                
+                # 점 크기를 더 크게 설정
+                fig6.update_traces(
+                    marker=dict(size=15),  # 기본 크기 8에서 15로 증가
+                    selector=dict(mode='markers')
+                )
+                
                 st.plotly_chart(fig6, use_container_width=True)
             except Exception as e:
                 st.warning(f"클러스터링 중 오류: {e}")
