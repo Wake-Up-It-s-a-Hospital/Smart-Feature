@@ -2038,31 +2038,199 @@ with st.expander("롤링 추세 기울기", expanded=False):
             except Exception:
                 st.line_chart(roll_df['slope_g_per_hour'])
 
-with st.expander("자기상관(ACF) / 부분자기상관(PACF)", expanded=False):
+with st.expander("ACF/PACF 분석", expanded=False):
+    # 도움말 섹션 추가 (expander 대신 버튼으로 토글)
+    if "show_acf_help" not in st.session_state:
+        st.session_state.show_acf_help = False
+        
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.write("수액 사용량의 시간적 패턴과 반복성을 분석합니다")
+    with col2:
+        if st.button("❓ 도움말", key="help_acf_btn"):
+            st.session_state.show_acf_help = not st.session_state.show_acf_help
+    
+    # 도움말 내용 표시
+    if st.session_state.show_acf_help:
+        st.markdown("---")
+        col_help1, col_help2 = st.columns(2)
+        with col_help1:
+            st.markdown("# 🔄 ACF/PACF 분석 가이드")
+            st.markdown("""
+        **📊 ACF와 PACF란?**
+        
+        간단히 말하면: 링거폴대(수액 거치대)의 수액 사용량이 시간적으로 얼마나 반복되는 패턴을 가지고 있는지 분석하는 기능입니다.
+        
+        **🤔 왜 '자기상관'이라는 이름을 사용할까요?**
+        
+        **ACF (AutoCorrelation Function)**: 
+        - 'Auto'는 '자기 자신', 'Correlation'은 '상관관계'를 의미
+        - 의료 환경에서는 '같은 장비의 과거 사용량과 현재 사용량의 연관성'을 분석
+        - 마치 오늘의 수액 사용량이 어제, 그제, 3일 전과 얼마나 비슷한지 확인하는 것
+        
+        **PACF (Partial AutoCorrelation Function)**:
+        - 'Partial'은 '부분적'을 의미하며, 중간 시점들의 영향을 제거
+        - ACF에서 다른 시점들의 간접적 영향을 제거한 직접적인 상관관계
+        
+        **차원 축소의 필요성**:
+        - **1시간 전**: 1시간 전 수액 사용량이 현재와 얼마나 연관되어 있는지
+        - **2시간 전**: 2시간 전 사용량이 현재와 얼마나 연관되어 있는지
+        - **하루 전**: 24시간 전 사용량이 현재와 얼마나 연관되어 있는지
+        
+        **실제 활용 예시**:
+        - 환자가 매일 같은 시간에 수액을 많이 사용하는지?
+        - 특정 시간대의 사용량이 다음 날 같은 시간대에 영향을 주는지?
+        - 수액 사용량에 주기적인 패턴이 있는지?
+        
+        **예시로 설명하면:**
+        - 오전 9시 사용량이 높으면 다음 날 오전 9시도 높을 확률은?
+        - 오후 2시 사용량이 낮으면 3시간 후에도 낮을 확률은?
+        - 하루 종일 사용량이 일정한 패턴을 보이는지?
+        
+        **🎯 이 분석으로 무엇을 알 수 있나요?**
+        
+        1. **수액 사용량의 시간적 패턴 파악**
+           - 특정 시간대의 사용량이 반복되는지 확인
+           - 하루, 일주일 단위의 주기성 패턴 발견
+           - 환자별 치료 일정의 규칙성 파악
+        
+        2. **예측 모델 개발을 위한 기초 분석**
+           - ARIMA 모델의 매개변수 결정에 활용
+           - 시계열 예측의 정확도 향상
+           - 데이터의 특성에 맞는 모델 선택
+        
+        3. **비정상 패턴 감지**
+           - 예상과 다른 자기상관 패턴 발견
+           - 치료 과정의 변화나 이상 상황 감지
+           - 장비 오작동이나 측정 오류 의심
+        
+        **📈 랙(Lag) 설정 가이드**
+        
+        **🔴 10-20분**: 단기 패턴 분석
+        - 시간 단위의 세밀한 패턴 파악
+        - 급격한 변화나 단기 반복성 확인
+        
+        **🟠 20-40분**: 중기 패턴 분석 (권장)
+        - 시간대별 패턴의 반복성 확인
+        - 치료 일정의 주기성 파악
+        
+        **🟢 40-60분**: 장기 패턴 분석
+        - 일일, 주간 단위의 패턴 확인
+        - 계절성이나 장기적 반복성 파악
+        """)
+            
+        with col_help2:
+            st.markdown("# 📊 그래프 해석 가이드")
+            st.markdown("""
+        ### **📋 ACF/PACF 막대그래프 구조**
+        - **X축**: 랙(Lag) - 몇 시간/분 전의 데이터와 비교하는지
+        - **Y축**: 상관계수 (-1 ~ +1, 절댓값이 클수록 강한 상관관계)
+        - **파란색 막대**: 각 랙에서의 자기상관 계수
+        
+        ### **🔍 그래프 패턴 해석**
+        
+        **상관계수의 의미**:
+        - **+0.8**: 매우 강한 양의 자기상관 (과거와 현재가 매우 비슷)
+        - **+0.5**: 중간 정도의 양의 자기상관 (어느 정도 비슷)
+        - **0.0**: 자기상관 없음 (과거와 현재가 무관)
+        - **-0.5**: 중간 정도의 음의 자기상관 (과거와 현재가 반대)
+        
+        **ACF vs PACF 차이점**:
+        - **ACF**: 모든 과거 시점의 영향을 포함한 총 상관관계
+        - **PACF**: 직접적인 상관관계만 (중간 시점들의 영향 제거)
+        
+        **🔍 특별한 패턴 해석**
+        
+        **주기적 패턴**:
+        - **24시간 주기**: 하루마다 반복되는 패턴
+        - **12시간 주기**: 반일마다 반복되는 패턴
+        - **1시간 주기**: 시간마다 반복되는 패턴
+        
+        **감쇠 패턴**:
+        - **지수적 감쇠**: 시간이 지날수록 상관관계가 점점 약해짐
+        - **주기적 감쇠**: 일정한 주기로 상관관계가 강해지고 약해짐
+        - **급격한 감쇠**: 짧은 시간 후 상관관계가 거의 사라짐
+        
+        **이상 패턴**:
+        - **예상과 다른 피크**: 비정상적인 반복 패턴
+        - **상관관계 부재**: 예상되는 패턴이 없는 경우
+        - **불규칙한 변동**: 패턴을 찾기 어려운 경우
+        
+        ### **💡 실용적 활용 팁**
+                
+        **패턴 분석**:
+        - **높은 자기상관**: 예측 가능한 패턴, 안정적인 치료 과정
+        - **낮은 자기상관**: 예측이 어려운 패턴, 불안정한 상황
+        - **음의 자기상관**: 반대 패턴, 치료 강도 조절 가능성
+        
+        **예측 모델링**:
+        - **ACF**: 전체적인 패턴 파악, 모델 타입 결정
+        - **PACF**: 구체적인 매개변수 설정, 모델 정확도 향상
+        - **랙 설정**: 데이터 특성에 맞는 적절한 범위 선택
+        
+        **정기적 모니터링**:
+        - 자기상관 패턴의 변화 추이 관찰
+        - 새로운 패턴의 출현 감지
+        - 치료 효과의 지속성 평가
+        """)
+        
+        if st.button("도움말 닫기", key="close_acf_help"):
+            st.session_state.show_acf_help = False
+            st.rerun()
+    
+    # 기존 ACF/PACF 코드
     if filtered_clean.empty:
         st.info("데이터가 없어 ACF/PACF를 계산할 수 없습니다.")
     else:
         sel_acf = st.selectbox("장비 선택(ACF)", filtered_clean['loadcel'].unique().tolist(), key="acf_sel", help="자기상관(ACF)과 부분자기상관(PACF)은 시계열 데이터의 자기상관성을 분석하는 통계적 방법입니다. ACF는 시계열 데이터와 그 지연된 버전 간의 상관관계를 측정하며, PACF는 다른 지연된 버전의 영향을 제거한 후의 상관관계를 측정합니다. 이 도구는 시계열 데이터의 자기상관성을 분석하여 시계열 데이터의 특성을 이해하고 예측 모델을 개발하는 데 도움을 줍니다.")
-        lags = st.sidebar.slider("최대 랙", 10, 60, 40, 5, key="acf_lags")
+        # 데이터 길이에 따라 최대 랙을 동적으로 조정
         series4 = filtered_clean[filtered_clean['loadcel'] == sel_acf].sort_values('timestamp')
         if len(series4) < 10:
             st.info("ACF/PACF 계산에 충분한 데이터가 필요합니다.")
         else:
-            s4 = series4[['timestamp', 'current_weight_history']].set_index('timestamp').asfreq('T')
-            s4['current_weight_history'] = s4['current_weight_history'].interpolate(limit_direction='both')
-            vals = s4['current_weight_history'].values
-            try:
-                acfs = sm_acf(vals, nlags=lags, fft=True)
-                pacfs = sm_pacf(vals, nlags=lags)
-                import plotly.graph_objs as go
-                figa = go.Figure([go.Bar(x=list(range(len(acfs))), y=acfs)])
-                figa.update_layout(title="ACF")
-                figp = go.Figure([go.Bar(x=list(range(len(pacfs))), y=pacfs)])
-                figp.update_layout(title="PACF")
-                st.plotly_chart(figa, use_container_width=True)
-                st.plotly_chart(figp, use_container_width=True)
-            except Exception as e:
-                st.warning(f"ACF/PACF 계산 중 오류: {e}")
+            # 데이터 길이의 50%를 넘지 않도록 최대 랙 제한
+            max_possible_lags = min(60, len(series4) // 2 - 1)
+            if max_possible_lags < 10:
+                st.info(f"데이터가 너무 적어 ACF/PACF를 계산할 수 없습니다. (최소 20개 데이터 필요)")
+            else:
+                # 사용 가능한 범위 내에서 랙 설정
+                default_lags = min(40, max_possible_lags)
+                lags = st.sidebar.slider("최대 랙", 10, max_possible_lags, default_lags, 5, key="acf_lags")
+                
+                s4 = series4[['timestamp', 'current_weight_history']].set_index('timestamp').asfreq('T')
+                s4['current_weight_history'] = s4['current_weight_history'].interpolate(limit_direction='both')
+                vals = s4['current_weight_history'].values
+                
+                # 결측값 제거
+                vals = vals[~np.isnan(vals)]
+                
+                if len(vals) < 10:
+                    st.info("유효한 데이터가 너무 적습니다.")
+                else:
+                    try:
+                        # 최종 랙을 데이터 길이의 50% 이하로 제한
+                        final_lags = min(lags, len(vals) // 2 - 1)
+                        if final_lags < lags:
+                            st.info(f"데이터 길이 제한으로 랙이 {final_lags}로 조정되었습니다.")
+                        
+                        acfs = sm_acf(vals, nlags=final_lags, fft=True)
+                        pacfs = sm_pacf(vals, nlags=final_lags)
+                        
+                        import plotly.graph_objs as go
+                        figa = go.Figure([go.Bar(x=list(range(len(acfs))), y=acfs)])
+                        figa.update_layout(title=f"ACF (랙: 0-{final_lags})")
+                        figp = go.Figure([go.Bar(x=list(range(len(pacfs))), y=pacfs)])
+                        figp.update_layout(title=f"PACF (랙: 0-{final_lags})")
+                        
+                        st.plotly_chart(figa, use_container_width=True)
+                        st.plotly_chart(figp, use_container_width=True)
+                        
+                        # 데이터 정보 표시
+                        st.caption(f"데이터 길이: {len(vals)}개, 사용된 랙: {final_lags}개")
+                        
+                    except Exception as e:
+                        st.warning(f"ACF/PACF 계산 중 오류: {e}")
+                        st.info("데이터 길이를 늘리거나 랙을 줄여서 다시 시도해보세요.")
                 
 with st.expander("예측: ARIMA 단기 예측", expanded=False):
     if filtered_clean.empty:
