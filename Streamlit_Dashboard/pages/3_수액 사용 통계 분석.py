@@ -194,6 +194,7 @@ else:
 
     # 2. 기간별 무게 변화(감소량, kg)
     st.subheader("기간별 무게 변화(감소량, kg)")
+    st.text("그래프 좌측 장비를 더블클릭하면 해당 장비만 표시할 수 있습니다.")
     if filtered.empty:
         st.info("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
@@ -214,18 +215,19 @@ else:
         filtered_clean['prev_weight'] = filtered_clean.groupby('loadcel')['current_weight_history'].shift(1)
         filtered_clean['usage'] = (filtered_clean['prev_weight'] - filtered_clean['current_weight_history']).clip(lower=0) / 1000
         
-        # 감소량(usage, kg) 기준으로 라인차트 표시
-        # 감소량이 0인 데이터는 제외
-        filtered_clean_nonzero = filtered_clean[filtered_clean['usage'] > 0]
+        # 감소량(usage, g) 기준으로 라인차트 표시
+        # 감소량이 0인 데이터는 제외하고, 단위를 g로 변환
+        filtered_clean_nonzero = filtered_clean[filtered_clean['usage'] > 0].copy()
+        filtered_clean_nonzero['usage_g'] = filtered_clean_nonzero['usage'] * 1000  # kg을 g로 변환
         
         if not filtered_clean_nonzero.empty:
             fig = px.line(
                 filtered_clean_nonzero,
                 x='timestamp',
-                y='usage',
+                y='usage_g',
                 color='loadcel',
                 markers=True,
-                labels={'usage': '감소량(kg)', 'timestamp': '시간', 'loadcel': '장비'}
+                labels={'usage_g': '감소량(g)', 'timestamp': '시간', 'loadcel': '장비'}
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
@@ -235,22 +237,42 @@ else:
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.subheader("시간대별 사용량(kg)")
+    st.subheader("시간대별 사용량(g)")
     # 마지막 데이터가 제외된 filtered_clean 사용
     filtered_clean['hour'] = filtered_clean['timestamp'].dt.hour
-    filtered_clean = filtered_clean.sort_values('timestamp')
-    filtered_clean['prev_weight'] = filtered_clean.groupby('loadcel')['current_weight_history'].shift(1)
-    filtered_clean['usage'] = (filtered_clean['prev_weight'] - filtered_clean['current_weight_history']).clip(lower=0) / 1000
+    
+    # 0) 형 변환 및 정렬 보장
+    filtered_clean['timestamp'] = pd.to_datetime(filtered_clean['timestamp'])
+    filtered_clean['current_weight_history'] = pd.to_numeric(
+        filtered_clean['current_weight_history'], errors='coerce'
+    )
+    
+    # 1) 폴대별 시간 정렬 보장
+    filtered_clean = filtered_clean.sort_values(['loadcel', 'timestamp'])
+    
+    # 2) 차분으로 사용량 계산 (현재-이전). 감소분만 취함.
+    diff = filtered_clean.groupby('loadcel')['current_weight_history'].diff()  # curr - prev
+    filtered_clean['usage'] = (-diff).clip(lower=0).fillna(0) / 1000  # kg
+    
+    # 3) 디버그로 폴대별 표본수/합계 확인
+    debug = filtered_clean.groupby('loadcel').agg(
+        rows=('timestamp', 'size'),
+        pos_hours=('usage', lambda s: (s > 0).sum()),
+        usage_sum=('usage', 'sum')
+    )
+    
+    # 시간대별 사용량 테이블 생성 (원본 데이터)
     usage_by_hour = filtered_clean.groupby(['hour', 'loadcel'])['usage'].sum().reset_index()
-    usage_by_hour['usage'] = usage_by_hour['usage'].round(1)
-    heatmap_pivot = usage_by_hour.pivot(index='hour', columns='loadcel', values='usage').fillna(0)
-    try:
-        fig_hm = px.imshow(heatmap_pivot, text_auto=True, color_continuous_scale='Blues', aspect='auto')
-        fig_hm.update_layout(title="시간대별 평균 사용량(kg)", xaxis_title="장비", yaxis_title="시간(시)")
-        st.plotly_chart(fig_hm, use_container_width=True)
-    except Exception:
-        st.dataframe(heatmap_pivot, height=300)
-
+    
+    # kg을 g로 변환 (1000 곱하기)
+    usage_by_hour['usage_g'] = usage_by_hour['usage'] * 1000
+    
+    # 피벗 테이블로 변환 (g 단위)
+    usage_pivot = usage_by_hour.pivot(index='hour', columns='loadcel', values='usage_g').fillna(0)
+    
+    # 원본 사용량 테이블 표시
+    st.dataframe(usage_pivot.round(3), use_container_width=True)
+    
 with col2:
     st.subheader("폴대별 사용량 랭킹(kg)")
     filtered_clean['usage'] = (filtered_clean['prev_weight'] - filtered_clean['current_weight_history']).clip(lower=0) / 1000
@@ -262,6 +284,8 @@ with col2:
 
 with col3:
     st.subheader("이상치(급격한 변화) 탐지")
+    st.text("50g 이상의 급격한 무게 변화가 감지되면 이상치로 분류됩니다. \n이는 측정 오류 또는 주행에 의한 무게 변화를 나타낼 수 있습니다.")
+    
     filtered_clean['diff'] = filtered_clean.groupby('loadcel')['current_weight_history'].diff().abs()
     outlier = filtered_clean[filtered_clean['diff'] > 50]  # 예: 50g 이상 변화
     if outlier.empty:
@@ -270,7 +294,7 @@ with col3:
         st.dataframe(outlier[['loadcel', 'timestamp', 'current_weight_history', 'diff']])
 
     # === 데이터 다운로드 ===
-    st.subheader("데이터 다운로드")
+    st.text("이상치 데이터 다운로드")
     csv = filtered_clean.to_csv(index=False).encode('utf-8-sig')
     st.download_button(
         label="CSV로 다운로드",
