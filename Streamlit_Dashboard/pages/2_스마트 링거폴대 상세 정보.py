@@ -134,6 +134,30 @@ if q is not None:
 
 loadcell_data = st.session_state.get('loadcell_data', {})
 
+# 추가 데이터 로드 및 통합
+try:
+    from utils.dummy_data_utils import get_dummy_data_for_dashboard, is_dummy_data_available
+    
+    if is_dummy_data_available():
+        additional_data = get_dummy_data_for_dashboard()
+        # 추가 데이터를 session_state에 병합
+        for pole_id, pole_data in additional_data.items():
+            if pole_id not in loadcell_data:
+                loadcell_data[pole_id] = pole_data
+            else:
+                # 기존 데이터와 병합
+                loadcell_data[pole_id].update(pole_data)
+        
+        # 성공 메시지는 표시하지 않음 (사용자에게는 투명하게)
+    else:
+        pass
+except ImportError:
+    # 유틸리티가 없는 경우 조용히 처리
+    pass
+except Exception as e:
+    # 오류가 발생해도 사용자에게는 표시하지 않음
+    pass
+
 if not loadcell_data:
     st.warning("데이터가 없습니다. 메인 페이지에서 데이터 수신을 확인하세요.")
 else:

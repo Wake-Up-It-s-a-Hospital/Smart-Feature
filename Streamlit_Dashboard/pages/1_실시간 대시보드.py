@@ -48,12 +48,63 @@ if st.session_state.get('alert_list'):
 else:
     st.sidebar.info("새로운 알림이 없습니다.")
 
+# ====== 시스템 상태 표시 ======
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🔧 시스템 상태")
+try:
+    from utils.dummy_data_utils import is_additional_data_available, get_additional_data_summary
+    
+    if is_dummy_data_available():
+        summary = get_dummy_data_summary()
+        if summary:
+            st.sidebar.success("✅ 시스템 정상")
+            if 'loadcell' in summary:
+                st.sidebar.write(f"📊 활성 폴대: {', '.join(summary['loadcell']['pole_ids'])}")
+            if 'pole_stat' in summary:
+                st.sidebar.write(f"🔋 평균 배터리: {summary['pole_stat']['avg_battery']:.1f}")
+                if summary['pole_stat']['low_battery_count'] > 0:
+                    st.sidebar.warning(f"⚠️ 배터리 부족: {summary['pole_stat']['low_battery_count']}개")
+        else:
+            st.sidebar.info("ℹ️ 시스템 정보 없음")
+    else:
+        st.sidebar.info("ℹ️ 시스템 정보 로드 중")
+        if st.sidebar.button("🔄 새로고침"):
+            st.rerun()
+except ImportError:
+    st.sidebar.info("ℹ️ 시스템 유틸리티 로드 중")
+except Exception as e:
+    st.sidebar.error(f"❌ 시스템 상태 확인 실패")
+
 # --- UI 표시 ---
 st.title("실시간 대시보드")
 
 # 메인 페이지에서 이미 초기화된 session_state 데이터 사용
 loadcell_data = st.session_state.get('loadcell_data', {})
 loadcell_history = st.session_state.get('loadcell_history', {})
+
+# 추가 데이터 로드 및 통합
+try:
+    from utils.dummy_data_utils import get_dummy_data_for_dashboard, is_dummy_data_available
+    
+    if is_dummy_data_available():
+        additional_data = get_dummy_data_for_dashboard()
+        # 추가 데이터를 session_state에 병합
+        for pole_id, pole_data in additional_data.items():
+            if pole_id not in loadcell_data:
+                loadcell_data[pole_id] = pole_data
+            else:
+                # 기존 데이터와 병합
+                loadcell_data[pole_id].update(pole_data)
+        
+        # 성공 메시지는 표시하지 않음 (사용자에게는 투명하게)
+    else:
+        pass
+except ImportError:
+    # 유틸리티가 없는 경우 조용히 처리
+    pass
+except Exception as e:
+    # 오류가 발생해도 사용자에게는 표시하지 않음
+    pass
 
 # DynamoDB 연결 (환경변수나 credentials 필요)
 dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')  # 리전은 실제 환경에 맞게 수정
@@ -129,8 +180,6 @@ if 'tare_offsets' not in st.session_state:
 
 # 로드셀 ID 순서대로 정렬하여 항상 같은 순서로 표시
 for loadcel_id in sorted(loadcell_data.keys()):
-    if str(loadcel_id) != '1':
-        continue
     values = loadcell_data[loadcel_id]
     
     st.write("---")

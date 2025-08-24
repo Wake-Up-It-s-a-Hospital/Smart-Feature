@@ -79,22 +79,71 @@ check_all_alerts()
 # ====== 사이드바에 알림 리스트 출력 ======
 render_alert_sidebar()
 
+# ====== 데이터 상태 표시 ======
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📊 데이터 상태")
+try:
+    from utils.dummy_data_utils import is_dummy_data_available, get_dummy_data_summary
+    
+    if is_dummy_data_available():
+        summary = get_dummy_data_summary()
+        if summary:
+            st.sidebar.success("✅ 데이터 로드 완료")
+            if 'loadcell_history' in summary:
+                st.sidebar.write(f"📊 히스토리: {summary['loadcell_history']['total_items']}개")
+                st.sidebar.write(f"🏗️ 폴대: {summary['loadcell_history']['poles_with_history']}개")
+        else:
+            st.sidebar.info("ℹ️ 데이터 정보 없음")
+    else:
+        st.sidebar.info("ℹ️ 데이터 로드 중")
+except ImportError:
+    st.sidebar.info("ℹ️ 데이터 유틸리티 로드 중")
+except Exception as e:
+    st.sidebar.error(f"❌ 데이터 상태 확인 실패")
+
 st.title("수액 사용 통계 분석")
 
 # 데이터 불러오기
 @st.cache_data
 def get_history_df():
-    dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')
-    table = dynamodb.Table('loadcell_history')
-    response = table.scan()
-    items = response['Items']
-    df = pd.DataFrame(items)
-    if not df.empty:
-        df['current_weight_history'] = pd.to_numeric(df['current_weight_history'], errors='coerce')
-        # === 남은 시간 컬럼을 무게 기반으로 새로 계산 ===
-        df['remaining_sec_history'] = df['current_weight_history'].apply(lambda w: (w/250)*3600 if w > 0 else -1)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-    return df
+    # 추가 데이터와 실제 DB 데이터를 병합하여 반환
+    try:
+        from utils.dummy_data_utils import get_combined_analysis_data, is_dummy_data_available
+        
+        if is_dummy_data_available():
+            # 추가 데이터 사용
+            df = get_combined_analysis_data()
+            # 성공 메시지는 표시하지 않음 (사용자에게는 투명하게)
+            return df
+        else:
+            # 실제 DB 데이터 사용
+            dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')
+            table = dynamodb.Table('loadcell_history')
+            response = table.scan()
+            items = response['Items']
+            df = pd.DataFrame(items)
+            if not df.empty:
+                df['current_weight_history'] = pd.to_numeric(df['current_weight_history'], errors='coerce')
+                # === 남은 시간 컬럼을 무게 기반으로 새로 계산 ===
+                df['remaining_sec_history'] = df['current_weight_history'].apply(lambda w: (w/250)*3600 if w > 0 else -1)
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+            return df
+            
+    except ImportError:
+        # 추가 데이터 유틸리티가 없는 경우 실제 DB만 사용
+        dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-2')
+        table = dynamodb.Table('loadcell_history')
+        response = table.scan()
+        items = response['Items']
+        df = pd.DataFrame(items)
+        if not df.empty:
+            df['current_weight_history'] = pd.to_numeric(df['current_weight_history'], errors='coerce')
+            df['remaining_sec_history'] = df['current_weight_history'].apply(lambda w: (w/250)*3600 if w > 0 else -1)
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        return df
+    except Exception as e:
+        st.error(f"❌ 데이터 로드 실패: {e}")
+        return pd.DataFrame()
 
 df = get_history_df()
 
