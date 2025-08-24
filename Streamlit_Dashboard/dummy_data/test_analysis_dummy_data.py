@@ -9,9 +9,19 @@
 import sys
 import os
 import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from datetime import datetime
+import numpy as np
+
+# matplotlib 한글 폰트 설정
+plt.rcParams['font.family'] = 'DejaVu Sans'
+plt.rcParams['axes.unicode_minus'] = False
 
 # 현재 디렉토리를 Python 경로에 추가
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# 상위 디렉토리(Streamlit_Dashboard)를 Python 경로에 추가
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_analysis_dummy_data():
     """분석용 더미데이터 함수들을 테스트합니다."""
@@ -19,18 +29,18 @@ def test_analysis_dummy_data():
     
     try:
         from utils.dummy_data_utils import (
-            get_dummy_data_for_analysis,
+            get_additional_data_for_analysis,
             get_combined_analysis_data,
-            is_dummy_data_available
+            is_additional_data_available
         )
         print("✅ 분석용 더미데이터 함수 임포트 성공")
         
         # 더미데이터 사용 가능 여부 확인
-        if is_dummy_data_available():
+        if is_additional_data_available():
             print("✅ 더미데이터 사용 가능")
             
             # 분석용 데이터 가져오기
-            analysis_df = get_dummy_data_for_analysis()
+            analysis_df = get_additional_data_for_analysis()
             print(f"📊 분석용 데이터프레임: {len(analysis_df)}개 행")
             
             if not analysis_df.empty:
@@ -79,9 +89,9 @@ def test_pandas_operations():
     print("\n🔍 Pandas 연산 테스트...")
     
     try:
-        from utils.dummy_data_utils import get_dummy_data_for_analysis
+        from utils.dummy_data_utils import get_additional_data_for_analysis
         
-        df = get_dummy_data_for_analysis()
+        df = get_additional_data_for_analysis()
         if df.empty:
             print("⚠️ 테스트할 데이터가 없습니다")
             return False
@@ -118,9 +128,9 @@ def test_data_quality():
     print("\n🔍 데이터 품질 테스트...")
     
     try:
-        from utils.dummy_data_utils import get_dummy_data_for_analysis
+        from utils.dummy_data_utils import get_additional_data_for_analysis
         
-        df = get_dummy_data_for_analysis()
+        df = get_additional_data_for_analysis()
         if df.empty:
             print("⚠️ 테스트할 데이터가 없습니다")
             return False
@@ -160,6 +170,175 @@ def test_data_quality():
         print(f"❌ 데이터 품질 테스트 실패: {e}")
         return False
 
+def plot_weight_changes():
+    """각 폴대별로 시간에 따른 무게 변화를 그래프로 표시합니다."""
+    print("\n📊 무게 변화 그래프 생성 중...")
+    
+    try:
+        from utils.dummy_data_utils import get_additional_data_for_analysis
+        
+        df = get_additional_data_for_analysis()
+        if df.empty:
+            print("⚠️ 테스트할 데이터가 없습니다")
+            return False
+        
+        # 타임스탬프를 datetime으로 변환
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        # 디버깅: 시간 범위 확인
+        print(f"📅 전체 시간 범위: {df['timestamp'].min()} ~ {df['timestamp'].max()}")
+        
+        # 폴대별로 데이터 정렬 (시간순)
+        df_sorted = df.sort_values(['loadcel', 'timestamp'])
+        
+        # 그래프 생성
+        fig, axes = plt.subplots(3, 3, figsize=(15, 12))
+        fig.suptitle('Each pole\'s weight changes over time', fontsize=16, fontweight='bold')
+        
+        # 폴대별로 서브플롯에 그리기
+        for i, pole_id in enumerate(sorted(df['loadcel'].unique())):
+            row = i // 3
+            col = i % 3
+            
+            # 해당 폴대의 데이터만 필터링하고 시간순 정렬
+            pole_data = df_sorted[df_sorted['loadcel'] == pole_id].copy()
+            pole_data = pole_data.sort_values('timestamp')  # 시간순 정렬
+            
+            if not pole_data.empty:
+                # 마지막 1개 데이터 제외 (수액 완료 상태 제거)
+                if len(pole_data) > 1:
+                    pole_data = pole_data.iloc[:-1]  # 마지막 행 제외
+                    print(f"🔍 폴대 {pole_id}: 마지막 1개 데이터 제외, {len(pole_data)}개 데이터 사용")
+                
+                # 무게 데이터를 숫자로 변환
+                weights = pd.to_numeric(pole_data['current_weight_history'])
+                timestamps = pole_data['timestamp']
+                
+                # 디버깅: 폴대별 데이터 정보
+                print(f"🔍 폴대 {pole_id}: {len(pole_data)}개 데이터, 시간: {timestamps.min()} ~ {timestamps.max()}")
+                print(f"   무게 범위: {weights.min():.1f}g ~ {weights.max():.1f}g")
+                
+                # 서브플롯에 그래프 그리기
+                axes[row, col].plot(timestamps, weights, 'b-', linewidth=2, marker='o', markersize=3)
+                axes[row, col].set_title(f'Pole {pole_id}', fontweight='bold')
+                axes[row, col].set_xlabel('Time')
+                axes[row, col].set_ylabel('Weight (g)')
+                axes[row, col].grid(True, alpha=0.3)
+                
+                # x축 시간 포맷 설정
+                axes[row, col].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                axes[row, col].tick_params(axis='x', rotation=45)
+                
+                # y축 범위 설정 (실제 데이터 범위에 맞춤)
+                min_weight = weights.min()
+                max_weight = weights.max()
+                weight_range = max_weight - min_weight
+                axes[row, col].set_ylim(max(0, min_weight - weight_range * 0.1), 
+                                       max_weight + weight_range * 0.1)
+                
+                # 통계 정보 표시
+                avg_weight = weights.mean()
+                final_weight = weights.iloc[-1]
+                initial_weight = weights.iloc[0]
+                axes[row, col].text(0.02, 0.98, f'avg: {avg_weight:.1f}g\nfinal: {final_weight:.1f}g\ninitial: {initial_weight:.1f}g', 
+                                   transform=axes[row, col].transAxes, 
+                                   verticalalignment='top',
+                                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+        
+        # 빈 서브플롯 숨기기
+        for i in range(len(df['loadcel'].unique()), 9):
+            row = i // 3
+            col = i % 3
+            axes[row, col].set_visible(False)
+        
+        plt.tight_layout()
+        plt.show()
+        
+        print("✅ 무게 변화 그래프 생성 완료 (마지막 1개 데이터 제외)")
+        return True
+        
+    except Exception as e:
+        print(f"❌ 그래프 생성 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def plot_weight_distribution():
+    """각 폴대별 무게 분포를 박스플롯으로 표시합니다."""
+    print("\n📊 무게 분포 박스플롯 생성 중...")
+    
+    try:
+        from utils.dummy_data_utils import get_additional_data_for_analysis
+        
+        df = get_additional_data_for_analysis()
+        if df.empty:
+            print("⚠️ 테스트할 데이터가 없습니다")
+            return False
+        
+        # 타임스탬프를 datetime으로 변환
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        # 폴대별로 마지막 1개 데이터 제외
+        filtered_data = []
+        for pole_id in sorted(df['loadcel'].unique()):
+            pole_data = df[df['loadcel'] == pole_id].sort_values('timestamp')
+            if len(pole_data) > 1:
+                # 마지막 1개 데이터 제외
+                filtered_pole_data = pole_data.iloc[:-1]
+                filtered_data.append(filtered_pole_data)
+                print(f"🔍 폴대 {pole_id}: 마지막 1개 데이터 제외, {len(filtered_pole_data)}개 데이터 사용")
+            else:
+                filtered_data.append(pole_data)
+                print(f"🔍 폴대 {pole_id}: 데이터가 1개뿐이므로 그대로 사용")
+        
+        # 필터링된 데이터를 하나의 DataFrame으로 합치기
+        df_filtered = pd.concat(filtered_data, ignore_index=True)
+        
+        # 무게 데이터를 숫자로 변환
+        df_filtered['current_weight_history'] = pd.to_numeric(df_filtered['current_weight_history'])
+        
+        # 박스플롯 생성
+        plt.figure(figsize=(12, 8))
+        
+        # 폴대별로 데이터 그룹화
+        pole_data = [df_filtered[df_filtered['loadcel'] == pole_id]['current_weight_history'].values 
+                     for pole_id in sorted(df_filtered['loadcel'].unique())]
+        pole_labels = [f'pole {pole_id}' for pole_id in sorted(df_filtered['loadcel'].unique())]
+        
+        # 박스플롯 그리기
+        bp = plt.boxplot(pole_data, labels=pole_labels, patch_artist=True)
+        
+        # 박스 색상 설정
+        colors = plt.cm.Set3(np.linspace(0, 1, len(pole_data)))
+        for patch, color in zip(bp['boxes'], colors):
+            patch.set_facecolor(color)
+            patch.set_alpha(0.7)
+        
+        plt.title('Each pole\'s weight distribution (last data excluded)', fontsize=16, fontweight='bold')
+        plt.xlabel('Pole ID')
+        plt.ylabel('Weight (g)')
+        plt.grid(True, alpha=0.3)
+        plt.xticks(rotation=45)
+        
+        # 통계 정보 추가
+        for i, pole_id in enumerate(sorted(df_filtered['loadcel'].unique())):
+            pole_weights = df_filtered[df_filtered['loadcel'] == pole_id]['current_weight_history']
+            mean_weight = pole_weights.mean()
+            plt.text(i+1, mean_weight, f'{mean_weight:.1f}g', 
+                    ha='center', va='bottom', fontweight='bold')
+        
+        plt.tight_layout()
+        plt.show()
+        
+        print("✅ 무게 분포 박스플롯 생성 완료 (마지막 1개 데이터 제외)")
+        return True
+        
+    except Exception as e:
+        print(f"❌ 박스플롯 생성 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 def main():
     """메인 테스트 함수"""
     print("🚀 분석 페이지 더미데이터 통합 테스트 시작!")
@@ -168,7 +347,9 @@ def main():
     tests = [
         ("분석용 더미데이터 함수", test_analysis_dummy_data),
         ("Pandas 연산", test_pandas_operations),
-        ("데이터 품질", test_data_quality)
+        ("데이터 품질", test_data_quality),
+        ("무게 변화 그래프", plot_weight_changes),
+        ("무게 분포 박스플롯", plot_weight_distribution)
     ]
     
     results = []

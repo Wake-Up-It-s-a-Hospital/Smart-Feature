@@ -1,65 +1,65 @@
 {
   "2": {
     "loadcel": "2",
-    "current_weight": "743.3",
-    "remaining_sec": "17124",
+    "current_weight": "755.9",
+    "remaining_sec": "17415",
     "nurse_call": false,
-    "timestamp": "2025-08-25T02:02:48.541924+09:00"
+    "timestamp": "2025-08-25T02:12:15.283322+09:00"
   },
   "3": {
     "loadcel": "3",
-    "current_weight": "1235.3",
-    "remaining_sec": "28461",
+    "current_weight": "859.9",
+    "remaining_sec": "19811",
     "nurse_call": false,
-    "timestamp": "2025-08-25T02:02:48.541924+09:00"
+    "timestamp": "2025-08-25T02:12:15.283322+09:00"
   },
   "4": {
     "loadcel": "4",
-    "current_weight": "1186.0",
-    "remaining_sec": "27326",
-    "nurse_call": true,
-    "timestamp": "2025-08-25T02:02:48.541924+09:00"
+    "current_weight": "1036.6",
+    "remaining_sec": "23882",
+    "nurse_call": false,
+    "timestamp": "2025-08-25T02:12:15.284322+09:00"
   },
   "5": {
     "loadcel": "5",
-    "current_weight": "1030.5",
-    "remaining_sec": "23743",
+    "current_weight": "1216.4",
+    "remaining_sec": "28026",
     "nurse_call": false,
-    "timestamp": "2025-08-25T02:02:48.541924+09:00"
+    "timestamp": "2025-08-25T02:12:15.284322+09:00"
   },
   "6": {
     "loadcel": "6",
-    "current_weight": "1069.5",
-    "remaining_sec": "24640",
+    "current_weight": "519.2",
+    "remaining_sec": "11961",
     "nurse_call": false,
-    "timestamp": "2025-08-25T02:02:48.542925+09:00"
+    "timestamp": "2025-08-25T02:12:15.284322+09:00"
   },
   "7": {
     "loadcel": "7",
-    "current_weight": "1179.0",
-    "remaining_sec": "27164",
+    "current_weight": "808.8",
+    "remaining_sec": "18634",
     "nurse_call": false,
-    "timestamp": "2025-08-25T02:02:48.542925+09:00"
+    "timestamp": "2025-08-25T02:12:15.284322+09:00"
   },
   "8": {
     "loadcel": "8",
-    "current_weight": "998.3",
-    "remaining_sec": "23000",
+    "current_weight": "1007.6",
+    "remaining_sec": "23214",
     "nurse_call": false,
-    "timestamp": "2025-08-25T02:02:48.542925+09:00"
+    "timestamp": "2025-08-25T02:12:15.284322+09:00"
   },
   "9": {
     "loadcel": "9",
-    "current_weight": "585.8",
-    "remaining_sec": "13496",
+    "current_weight": "861.4",
+    "remaining_sec": "19846",
     "nurse_call": false,
-    "timestamp": "2025-08-25T02:02:48.542925+09:00"
+    "timestamp": "2025-08-25T02:12:15.284322+09:00"
   },
   "10": {
     "loadcel": "10",
-    "current_weight": "1095.0",
-    "remaining_sec": "25229",
+    "current_weight": "1028.6",
+    "remaining_sec": "23699",
     "nurse_call": false,
-    "timestamp": "2025-08-25T02:02:48.542925+09:00"
+    "timestamp": "2025-08-25T02:12:15.284322+09:00"
   }
 }
