@@ -207,7 +207,7 @@ else:
     # === ACF/PACF 분석 파라미터 ===
     st.sidebar.markdown("---")
     st.sidebar.markdown("**🔄 ACF/PACF 분석 설정**")
-    lags = st.sidebar.slider("최대 랙", 10, 60, 40, 5, key="acf_lags", help="자기상관을 계산할 최대 지연 시간을 설정합니다. 데이터 길이의 50%를 넘지 않도록 자동 조정됩니다.")
+    acf_lags = st.sidebar.slider("최대 랙", 10, 60, 40, 5, key="acf_lags", help="자기상관을 계산할 최대 지연 시간을 설정합니다. 데이터 길이의 50%를 넘지 않도록 자동 조정됩니다.")
     
     # === ARIMA 예측 파라미터 ===
     st.sidebar.markdown("---")
@@ -2211,7 +2211,7 @@ with st.expander("ACF/PACF 분석", expanded=False):
     if filtered_clean.empty:
         st.info("데이터가 없어 ACF/PACF를 계산할 수 없습니다.")
     else:
-        sel_acf = st.selectbox("장비 선택(ACF)", filtered_clean['loadcel'].unique().tolist(), key="acf_sel", help="자기상관(ACF)과 부분자기상관(PACF)은 시계열 데이터의 자기상관성을 분석하는 통계적 방법입니다. ACF는 시계열 데이터와 그 지연된 버전 간의 상관관계를 측정하며, PACF는 다른 지연된 버전의 영향을 제거한 후의 상관관계를 측정합니다. 이 도구는 시계열 데이터의 자기상관성을 분석하여 시계열 데이터의 특성을 이해하고 예측 모델을 개발하는 데 도움을 줍니다.")
+        sel_acf = st.selectbox("장비 선택(ACF)", filtered_clean['loadcel'].unique().tolist(), key="acf_sel")
         # 데이터 길이에 따라 최대 랙을 동적으로 조정
         series4 = filtered_clean[filtered_clean['loadcel'] == sel_acf].sort_values('timestamp')
         if len(series4) < 10:
@@ -2237,12 +2237,15 @@ with st.expander("ACF/PACF 분석", expanded=False):
                 else:
                     try:
                         # 최종 랙을 데이터 길이의 50% 이하로 제한
-                        final_lags = min(lags, len(vals) // 2 - 1)
-                        if final_lags < lags:
+                        final_lags = min(acf_lags, len(vals) // 2 - 1)
+                        if final_lags < acf_lags:
                             st.info(f"데이터 길이 제한으로 랙이 {final_lags}로 조정되었습니다.")
                         
-                        acfs = sm_acf(vals, nlags=final_lags, fft=True)
-                        pacfs = sm_pacf(vals, nlags=final_lags)
+                        # acf_lags가 range 객체인 경우를 대비하여 정수로 변환
+                        final_lags_int = int(final_lags)
+                        
+                        acfs = sm_acf(vals, nlags=final_lags_int, fft=True)
+                        pacfs = sm_pacf(vals, nlags=final_lags_int)
                         
                         import plotly.graph_objs as go
                         figa = go.Figure([go.Bar(x=list(range(len(acfs))), y=acfs)])
