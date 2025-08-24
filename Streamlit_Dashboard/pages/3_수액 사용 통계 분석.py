@@ -197,30 +197,51 @@ else:
     if filtered.empty:
         st.info("선택한 조건에 해당하는 데이터가 없습니다.")
     else:
-        filtered = filtered.sort_values('timestamp')
-        filtered['prev_weight'] = filtered.groupby('loadcel')['current_weight_history'].shift(1)
-        filtered['usage'] = (filtered['prev_weight'] - filtered['current_weight_history']).clip(lower=0) / 1000
+        # 각 폴대별로 마지막 데이터 제외
+        filtered_clean = pd.DataFrame()
+        for pole_id in filtered['loadcel'].unique():
+            pole_data = filtered[filtered['loadcel'] == pole_id].sort_values('timestamp')
+            if len(pole_data) > 1:
+                # 마지막 1개 데이터 제외
+                pole_data_clean = pole_data.iloc[:-1]
+                filtered_clean = pd.concat([filtered_clean, pole_data_clean], ignore_index=True)
+            else:
+                # 데이터가 1개뿐인 경우 그대로 사용
+                filtered_clean = pd.concat([filtered_clean, pole_data], ignore_index=True)
+        
+        # 정렬 및 사용량 계산
+        filtered_clean = filtered_clean.sort_values('timestamp')
+        filtered_clean['prev_weight'] = filtered_clean.groupby('loadcel')['current_weight_history'].shift(1)
+        filtered_clean['usage'] = (filtered_clean['prev_weight'] - filtered_clean['current_weight_history']).clip(lower=0) / 1000
+        
         # 감소량(usage, kg) 기준으로 라인차트 표시
-        fig = px.line(
-            filtered,
-            x='timestamp',
-            y='usage',
-            color='loadcel',
-            markers=True,
-            labels={'usage': '감소량(kg)', 'timestamp': '시간', 'loadcel': '장비'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        # 감소량이 0인 데이터는 제외
+        filtered_clean_nonzero = filtered_clean[filtered_clean['usage'] > 0]
+        
+        if not filtered_clean_nonzero.empty:
+            fig = px.line(
+                filtered_clean_nonzero,
+                x='timestamp',
+                y='usage',
+                color='loadcel',
+                markers=True,
+                labels={'usage': '감소량(kg)', 'timestamp': '시간', 'loadcel': '장비'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("감소량이 있는 데이터가 없습니다.")
 
 # === 3개 통계 가로 배치 ===
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("시간대별 사용량(kg)")
-    filtered['hour'] = filtered['timestamp'].dt.hour
-    filtered = filtered.sort_values('timestamp')
-    filtered['prev_weight'] = filtered.groupby('loadcel')['current_weight_history'].shift(1)
-    filtered['usage'] = (filtered['prev_weight'] - filtered['current_weight_history']).clip(lower=0) / 1000
-    usage_by_hour = filtered.groupby(['hour', 'loadcel'])['usage'].sum().reset_index()
+    # 마지막 데이터가 제외된 filtered_clean 사용
+    filtered_clean['hour'] = filtered_clean['timestamp'].dt.hour
+    filtered_clean = filtered_clean.sort_values('timestamp')
+    filtered_clean['prev_weight'] = filtered_clean.groupby('loadcel')['current_weight_history'].shift(1)
+    filtered_clean['usage'] = (filtered_clean['prev_weight'] - filtered_clean['current_weight_history']).clip(lower=0) / 1000
+    usage_by_hour = filtered_clean.groupby(['hour', 'loadcel'])['usage'].sum().reset_index()
     usage_by_hour['usage'] = usage_by_hour['usage'].round(1)
     heatmap_pivot = usage_by_hour.pivot(index='hour', columns='loadcel', values='usage').fillna(0)
     try:
@@ -232,8 +253,8 @@ with col1:
 
 with col2:
     st.subheader("폴대별 사용량 랭킹(kg)")
-    filtered['usage'] = (filtered['prev_weight'] - filtered['current_weight_history']).clip(lower=0) / 1000
-    rank_df = filtered.groupby('loadcel')['usage'].sum().reset_index()
+    filtered_clean['usage'] = (filtered_clean['prev_weight'] - filtered_clean['current_weight_history']).clip(lower=0) / 1000
+    rank_df = filtered_clean.groupby('loadcel')['usage'].sum().reset_index()
     rank_df['usage'] = rank_df['usage'].round(1)
     rank_df = rank_df.sort_values('usage', ascending=False)
     rank_df.index += 1
@@ -241,8 +262,8 @@ with col2:
 
 with col3:
     st.subheader("이상치(급격한 변화) 탐지")
-    filtered['diff'] = filtered.groupby('loadcel')['current_weight_history'].diff().abs()
-    outlier = filtered[filtered['diff'] > 50]  # 예: 50g 이상 변화
+    filtered_clean['diff'] = filtered_clean.groupby('loadcel')['current_weight_history'].diff().abs()
+    outlier = filtered_clean[filtered_clean['diff'] > 50]  # 예: 50g 이상 변화
     if outlier.empty:
         st.info("이상 변화(급격한 무게 변화) 없음")
     else:
@@ -250,7 +271,7 @@ with col3:
 
     # === 데이터 다운로드 ===
     st.subheader("데이터 다운로드")
-    csv = filtered.to_csv(index=False).encode('utf-8-sig')
+    csv = filtered_clean.to_csv(index=False).encode('utf-8-sig')
     st.download_button(
         label="CSV로 다운로드",
         data=csv,
@@ -270,14 +291,14 @@ st.subheader("고급 통계 기능")
 col1, col2, col3 = st.columns(3)
 
 with st.expander("상관관계 분석 (장비별 사용량)", expanded=False):
-    if filtered.empty:
+    if filtered_clean.empty:
         st.info("선택된 기간/장비 조건에 데이터가 없어 상관관계를 계산할 수 없습니다.")
     else:
         corr_freq_label = st.sidebar.selectbox("상관관계 집계 간격", ["15분", "30분", "1시간"], index=2, key="corr_freq_select")
         freq_map = {"15분": "15T", "30분": "30T", "1시간": "1H"}
         freq = freq_map[corr_freq_label]
 
-        df_corr = filtered.copy()
+        df_corr = filtered_clean.copy()
         df_corr = df_corr.sort_values('timestamp')
         df_corr['prev_weight'] = df_corr.groupby('loadcel')['current_weight_history'].shift(1)
         df_corr['usage'] = (df_corr['prev_weight'] - df_corr['current_weight_history']).clip(lower=0)
@@ -300,11 +321,11 @@ with st.expander("상관관계 분석 (장비별 사용량)", expanded=False):
             st.warning(f"상관관계 분석 중 오류가 발생했습니다: {e}")
 
 with st.expander("트렌드 분석 (무게 추이 및 기울기)", expanded=False):
-    if filtered.empty:
+    if filtered_clean.empty:
         st.info("데이터가 없어 트렌드를 계산할 수 없습니다.")
     else:
         trend_rows = []
-        for loadcel_id, grp in filtered.sort_values('timestamp').groupby('loadcel'):
+        for loadcel_id, grp in filtered_clean.sort_values('timestamp').groupby('loadcel'):
             if len(grp) < 2:
                 continue
             t_hours = (grp['timestamp'] - grp['timestamp'].min()).dt.total_seconds() / 3600.0
@@ -324,9 +345,9 @@ with st.expander("트렌드 분석 (무게 추이 및 기울기)", expanded=Fals
             trend_df = trend_df.sort_values('slope_g_per_hour')
             st.dataframe(trend_df.rename(columns={'loadcel': '장비', 'slope_g_per_hour': '기울기(g/시간)'}), use_container_width=True)
 
-            loadcel_options = filtered['loadcel'].unique().tolist()
+            loadcel_options = filtered_clean['loadcel'].unique().tolist()
             sel = st.selectbox("트렌드 상세 보기 - 장비 선택", loadcel_options)
-            grp = filtered[filtered['loadcel'] == sel].sort_values('timestamp')
+            grp = filtered_clean[filtered_clean['loadcel'] == sel].sort_values('timestamp')
             if len(grp) >= 2:
                 t_hours = (grp['timestamp'] - grp['timestamp'].min()).dt.total_seconds() / 3600.0
                 y = grp['current_weight_history']
@@ -343,13 +364,13 @@ with st.expander("트렌드 분석 (무게 추이 및 기울기)", expanded=Fals
                     st.line_chart(pd.DataFrame({'시간': grp['timestamp'], '무게(g)': y}).set_index('시간'))
 
 with st.expander("이상치 자동 감지", expanded=False):
-    if filtered.empty:
+    if filtered_clean.empty:
         st.info("데이터가 없어 이상치 탐지를 수행할 수 없습니다.")
     else:
         od_method = st.sidebar.selectbox("이상치 방법", ["이동표준편차", "ARIMA 잔차"], index=0, key="od_method")
         threshold_sigma = st.sidebar.slider("임계 기준(시그마)", 2.0, 5.0, 3.0, 0.5, key="od_sigma")
-        single = st.selectbox("장비 선택(단일 감지)", filtered['loadcel'].unique().tolist())
-        series = filtered[filtered['loadcel'] == single].sort_values('timestamp')
+        single = st.selectbox("장비 선택(단일 감지)", filtered_clean['loadcel'].unique().tolist())
+        series = filtered_clean[filtered_clean['loadcel'] == single].sort_values('timestamp')
         if len(series) < 10:
             st.info("이상치 분석을 위한 데이터가 충분하지 않습니다.")
         else:
@@ -428,7 +449,7 @@ with st.expander("장비 클러스터링 (KMeans)", expanded=False):
         st.info("데이터가 없어 클러스터링을 수행할 수 없습니다.")
     else:
         # 장비별 특성 벡터: 평균 사용량(kg), 변동성(표준편차, kg), 일별 평균 사용량(kg)의 평균
-        feat = filtered.copy()
+        feat = filtered_clean.copy()
         if feat.empty:
             st.info("선택한 기간/장비에 데이터가 없습니다.")
         else:
@@ -466,7 +487,7 @@ with st.expander("장비 클러스터링 (KMeans)", expanded=False):
                 st.warning(f"클러스터링 중 오류: {e}")
 
 with st.expander("다중회귀: 시간대/요일 영향 분석", expanded=False):
-    if filtered.empty:
+    if filtered_clean.empty:
         st.info("데이터가 없어 회귀 분석을 수행할 수 없습니다.")
     else:
         reg_freq_label = st.sidebar.selectbox(
@@ -479,7 +500,7 @@ with st.expander("다중회귀: 시간대/요일 영향 분석", expanded=False)
         freq_map = {"15분": "15T", "30분": "30T", "1시간": "1H"}
         rf = freq_map[reg_freq_label]
         use_device_dummies = st.sidebar.checkbox("장비 더미 포함", value=False, key="reg_dev_dummy")
-        tmp = filtered.copy().sort_values('timestamp')
+        tmp = filtered_clean.copy().sort_values('timestamp')
         tmp['prev_weight'] = tmp.groupby('loadcel')['current_weight_history'].shift(1)
         tmp['usage'] = (tmp['prev_weight'] - tmp['current_weight_history']).clip(lower=0) / 1000
         # 시간대/요일 특성 생성
@@ -516,17 +537,17 @@ with st.expander("다중회귀: 시간대/요일 영향 분석", expanded=False)
 
 
 with st.expander("예측: ARIMA 단기 예측", expanded=False):
-    if filtered.empty:
+    if filtered_clean.empty:
         st.info("데이터가 없어 예측을 수행할 수 없습니다.")
     else:
         sel_fc = st.selectbox(
             "장비 선택(예측)",
-            filtered['loadcel'].unique().tolist(),
+            filtered_clean['loadcel'].unique().tolist(),
             key="fc_sel",
             help="ARIMA 단기 예측을 수행할 장비입니다."
         )
         horizon = st.sidebar.slider("예측 구간(분)", 10, 240, 60, 10, key="fc_h")
-        series3 = filtered[filtered['loadcel'] == sel_fc].sort_values('timestamp')
+        series3 = filtered_clean[filtered_clean['loadcel'] == sel_fc].sort_values('timestamp')
         s3 = series3[['timestamp', 'current_weight_history']].dropna()
         if len(s3) < 20:
             st.info("예측을 위한 데이터가 충분하지 않습니다.")
@@ -555,10 +576,10 @@ with st.expander("예측: ARIMA 단기 예측", expanded=False):
 
 
 with st.expander("요일-시간대 히트맵 (평균 사용량)", expanded=False):
-    if filtered.empty:
+    if filtered_clean.empty:
         st.info("데이터가 없어 히트맵을 만들 수 없습니다.")
     else:
-        tmp2 = filtered.copy().sort_values('timestamp')
+        tmp2 = filtered_clean.copy().sort_values('timestamp')
         tmp2['prev_weight'] = tmp2.groupby('loadcel')['current_weight_history'].shift(1)
         tmp2['usage'] = (tmp2['prev_weight'] - tmp2['current_weight_history']).clip(lower=0) / 1000
         tmp2['hour'] = tmp2['timestamp'].dt.hour
@@ -571,16 +592,16 @@ with st.expander("요일-시간대 히트맵 (평균 사용량)", expanded=False
 
 
 with st.expander("장비 간 지연 상관분석 (Cross-Correlation)", expanded=False):
-    if filtered.empty or len(filtered['loadcel'].unique()) < 2:
+    if filtered_clean.empty or len(filtered_clean['loadcel'].unique()) < 2:
         st.info("두 개 이상의 장비 데이터가 필요합니다.")
     else:
-        devs = filtered['loadcel'].unique().tolist()
+        devs = filtered_clean['loadcel'].unique().tolist()
         a = st.selectbox("장비 A", devs, index=0, help="지연 상관을 계산할 첫 번째 장비입니다.")
         b = st.selectbox("장비 B", devs, index=1 if len(devs) > 1 else 0, help="지연 상관을 계산할 두 번째 장비입니다.")
         max_lag_req = st.sidebar.slider("최대 지연(분)", 5, 120, 30, 5, key="ccf_lag")
         freq = '1T'
         def usage_series(d):
-            ddf = filtered[filtered['loadcel'] == d].sort_values('timestamp')
+            ddf = filtered_clean[filtered_clean['loadcel'] == d].sort_values('timestamp')
             ddf['prev_weight'] = ddf['current_weight_history'].shift(1)
             u = (ddf['prev_weight'] - ddf['current_weight_history']).clip(lower=0)
             s = pd.Series(u.values, index=ddf['timestamp']).asfreq(freq).interpolate(limit_direction='both').fillna(0)
@@ -628,7 +649,7 @@ with st.expander("PCA 시각화 (장비 특성)", expanded=False):
         st.info("데이터가 없어 PCA를 수행할 수 없습니다.")
     else:
         # 앞서 만든 agg가 있을 수 있으나 안정적으로 재계산
-        feat = filtered.copy().sort_values('timestamp')
+        feat = filtered_clean.copy().sort_values('timestamp')
         if feat.empty:
             st.info("선택한 기간/장비에 데이터가 없습니다.")
         else:
@@ -658,12 +679,12 @@ with st.expander("PCA 시각화 (장비 특성)", expanded=False):
 
 
 with st.expander("롤링 추세 기울기", expanded=False):
-    if filtered.empty:
+    if filtered_clean.empty:
         st.info("데이터가 없어 롤링 기울기를 계산할 수 없습니다.")
     else:
-        sel_roll = st.selectbox("장비 선택(롤링)", filtered['loadcel'].unique().tolist(), key="roll_sel")
+        sel_roll = st.selectbox("장비 선택(롤링)", filtered_clean['loadcel'].unique().tolist(), key="roll_sel")
         win_min = st.sidebar.slider("윈도우(분)", 10, 240, 60, 10, key="roll_win")
-        grp = filtered[filtered['loadcel'] == sel_roll].sort_values('timestamp')
+        grp = filtered_clean[filtered_clean['loadcel'] == sel_roll].sort_values('timestamp')
         if len(grp) < 5:
             st.info("롤링 계산에 충분한 데이터가 필요합니다.")
         else:
@@ -695,12 +716,12 @@ with st.expander("롤링 추세 기울기", expanded=False):
                 st.line_chart(roll_df['slope_g_per_hour'])
 
 with st.expander("자기상관(ACF) / 부분자기상관(PACF)", expanded=False):
-    if filtered.empty:
+    if filtered_clean.empty:
         st.info("데이터가 없어 ACF/PACF를 계산할 수 없습니다.")
     else:
-        sel_acf = st.selectbox("장비 선택(ACF)", filtered['loadcel'].unique().tolist(), key="acf_sel", help="자기상관(ACF)과 부분자기상관(PACF)은 시계열 데이터의 자기상관성을 분석하는 통계적 방법입니다. ACF는 시계열 데이터와 그 지연된 버전 간의 상관관계를 측정하며, PACF는 다른 지연된 버전의 영향을 제거한 후의 상관관계를 측정합니다. 이 도구는 시계열 데이터의 자기상관성을 분석하여 시계열 데이터의 특성을 이해하고 예측 모델을 개발하는 데 도움을 줍니다.")
+        sel_acf = st.selectbox("장비 선택(ACF)", filtered_clean['loadcel'].unique().tolist(), key="acf_sel", help="자기상관(ACF)과 부분자기상관(PACF)은 시계열 데이터의 자기상관성을 분석하는 통계적 방법입니다. ACF는 시계열 데이터와 그 지연된 버전 간의 상관관계를 측정하며, PACF는 다른 지연된 버전의 영향을 제거한 후의 상관관계를 측정합니다. 이 도구는 시계열 데이터의 자기상관성을 분석하여 시계열 데이터의 특성을 이해하고 예측 모델을 개발하는 데 도움을 줍니다.")
         lags = st.sidebar.slider("최대 랙", 10, 60, 40, 5, key="acf_lags")
-        series4 = filtered[filtered['loadcel'] == sel_acf].sort_values('timestamp')
+        series4 = filtered_clean[filtered_clean['loadcel'] == sel_acf].sort_values('timestamp')
         if len(series4) < 10:
             st.info("ACF/PACF 계산에 충분한 데이터가 필요합니다.")
         else:
