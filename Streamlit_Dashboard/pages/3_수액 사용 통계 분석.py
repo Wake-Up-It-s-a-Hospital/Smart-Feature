@@ -171,6 +171,51 @@ else:
     selected_loadcel = st.sidebar.multiselect("장비 선택", loadcel_options, default=loadcel_options)
     start_date = st.sidebar.date_input("시작일", df['timestamp'].min().date())
     end_date = st.sidebar.date_input("종료일", df['timestamp'].max().date())
+    
+    # === 상관관계 분석 파라미터 ===
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**📊 상관관계 분석 설정**")
+    corr_freq_label = st.sidebar.selectbox("상관관계 집계 간격", ["15분", "30분", "1시간"], index=2, key="corr_freq_select", help="여러 장비의 사용량을 집계할 시간 간격을 설정합니다. 짧은 간격은 세밀한 패턴을, 긴 간격은 안정적인 패턴을 보여줍니다.")
+    
+    # === 이상치 탐지 파라미터 ===
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**🚨 이상치 탐지 설정**")
+    od_method = st.sidebar.selectbox("이상치 방법", ["이동표준편차", "ARIMA 잔차"], index=0, key="od_method", help="이상치를 탐지하는 방법을 선택합니다. 이동표준편차는 단기 변화에, ARIMA 잔차는 장기 패턴을 고려한 이상치를 감지합니다.")
+    threshold_sigma = st.sidebar.slider("임계 기준(시그마)", 2.0, 5.0, 3.0, 0.5, key="od_sigma", help="이상치 판단 기준을 설정합니다. 낮은 값은 민감하게, 높은 값은 보수적으로 이상치를 감지합니다.")
+    win_min = st.sidebar.slider("윈도우 크기(분)", 5, 60, 15, 5, key="od_win", help="이상치 탐지에 사용할 시간 구간을 설정합니다. 작은 윈도우는 세밀한 변화를, 큰 윈도우는 안정적인 변화를 감지합니다.")
+    
+    # === 계절성 분석 파라미터 ===
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**🌊 계절성 분석 설정**")
+    period_minutes = st.sidebar.selectbox("주기(분)", [60, 120, 180, 240, 360, 720, 1440], index=6, key="stl_period", help="분해할 주기를 설정합니다. 60분은 시간별, 1440분은 일별 패턴을 분석합니다.")
+    
+    # === 클러스터링 파라미터 ===
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**🎯 장비 군집화 설정**")
+    chosen_k = st.sidebar.slider("클러스터 개수(k)", 2, 10, 4, 1, key="kmeans_k", help="장비를 몇 개의 그룹으로 분류할지 설정합니다. 적은 수는 단순한 분류를, 많은 수는 세밀한 분류를 제공합니다.")
+        
+    # === 장비 간 상호 상관관계 분석 파라미터 ===
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**🔗 상호 상관관계 분석 설정**")
+    max_lag_req = st.sidebar.slider("최대 지연(분)", 5, 120, 30, 5, key="ccf_lag", help="두 장비 간의 상관관계를 계산할 최대 시간 지연을 설정합니다. 짧은 지연은 빠른 업무 전환, 긴 지연은 장기적 패턴을 분석합니다.")
+    
+    # === 롤링 추세 기울기 파라미터 ===
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**📈 롤링 추세 기울기 설정**")
+    win_min_roll = st.sidebar.slider("윈도우(분)", 10, 240, 60, 10, key="roll_win", help="기울기를 계산할 시간 구간을 설정합니다. 작은 윈도우는 세밀한 변화를, 큰 윈도우는 안정적인 변화를 보여줍니다.")
+    
+    # === ACF/PACF 분석 파라미터 ===
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**🔄 ACF/PACF 분석 설정**")
+    lags = st.sidebar.slider("최대 랙", 10, 60, 40, 5, key="acf_lags", help="자기상관을 계산할 최대 지연 시간을 설정합니다. 데이터 길이의 50%를 넘지 않도록 자동 조정됩니다.")
+    
+    # === ARIMA 예측 파라미터 ===
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**🔮 ARIMA 예측 설정**")
+    horizon = st.sidebar.slider("예측 구간(분)", 10, 240, 60, 10, key="fc_h", help="미래를 얼마나 예측할지 설정합니다. 짧은 구간은 높은 정확도, 긴 구간은 장기 계획에 유용합니다.")
+    order_p = st.sidebar.slider("ARIMA p(예측)", 0, 3, 1, key="fc_p", help="자기회귀 차수입니다. 과거 값들이 현재에 미치는 영향을 설정합니다. 높을수록 복잡한 패턴을 모델링합니다.")
+    order_d = st.sidebar.slider("ARIMA d(예측)", 0, 2, 1, key="fc_d", help="차분 차수입니다. 데이터의 안정성을 확보하기 위해 사용됩니다. 높을수록 더 안정적인 데이터로 변환합니다.")
+    order_q = st.sidebar.slider("ARIMA q(예측)", 0, 3, 1, key="fc_q", help="이동평균 차수입니다. 과거 예측 오차들이 현재에 미치는 영향을 설정합니다. 높을수록 정교한 오차 패턴을 모델링합니다.")
 
     # 타임존 정보 추출 및 일치화
     tz = df['timestamp'].dt.tz if df['timestamp'].dt.tz is not None else None
@@ -315,7 +360,7 @@ with st.expander("각 장비 사이의 상관관계", expanded=False):
     with col1:
         st.write("여러 장비의 사용량 상관관계를 분석합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_corr_btn"):
+        if st.button("도움말", key="help_corr_btn"):
             st.session_state.show_corr_help = not st.session_state.show_corr_help
     
     # 도움말 내용 표시
@@ -441,7 +486,6 @@ with st.expander("각 장비 사이의 상관관계", expanded=False):
     else:
         
         # 기존 상관관계 분석 코드
-        corr_freq_label = st.sidebar.selectbox("상관관계 집계 간격", ["15분", "30분", "1시간"], index=2, key="corr_freq_select")
         freq_map = {"15분": "15T", "30분": "30T", "1시간": "1H"}
         freq = freq_map[corr_freq_label]
 
@@ -673,7 +717,7 @@ with st.expander("무게 변화 추세 분석", expanded=False):
     with col1:
         st.write("각 장비의 무게 변화 추세를 분석합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_trend_btn"):
+        if st.button("도움말", key="help_trend_btn"):
             st.session_state.show_trend_help = not st.session_state.show_trend_help
     
     # 도움말 내용 표시
@@ -835,7 +879,7 @@ with st.expander("이상치 심화 분석", expanded=False):
     with col1:
         st.write("비정상적인 무게 변화를 자동으로 감지합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_outlier_btn"):
+        if st.button("도움말", key="help_outlier_btn"):
             st.session_state.show_outlier_help = not st.session_state.show_outlier_help
     
     # 도움말 내용 표시
@@ -954,8 +998,6 @@ with st.expander("이상치 심화 분석", expanded=False):
     if filtered_clean.empty:
         st.info("데이터가 없어 이상치 탐지를 수행할 수 없습니다.")
     else:
-        od_method = st.sidebar.selectbox("이상치 방법", ["이동표준편차", "ARIMA 잔차"], index=0, key="od_method")
-        threshold_sigma = st.sidebar.slider("임계 기준(시그마)", 2.0, 5.0, 3.0, 0.5, key="od_sigma")
         single = st.selectbox("장비 선택(단일 감지)", filtered_clean['loadcel'].unique().tolist())
         series = filtered_clean[filtered_clean['loadcel'] == single].sort_values('timestamp')
         if len(series) < 10:
@@ -965,9 +1007,8 @@ with st.expander("이상치 심화 분석", expanded=False):
             s = s.set_index('timestamp').asfreq('T')  # 1분 간격 보간
             s['current_weight_history'] = s['current_weight_history'].interpolate(limit_direction='both')
             if od_method == "이동표준편차":
-                win = st.sidebar.slider("윈도우 크기(분)", 5, 60, 15, 5, key="od_win")
-                roll_mean = s['current_weight_history'].rolling(f'{win}T').mean()
-                roll_std = s['current_weight_history'].rolling(f'{win}T').std().fillna(0)
+                roll_mean = s['current_weight_history'].rolling(f'{win_min}T').mean()
+                roll_std = s['current_weight_history'].rolling(f'{win_min}T').std().fillna(0)
                 z = (s['current_weight_history'] - roll_mean).abs() / (roll_std.replace(0, np.nan))
                 outlier_mask = z > threshold_sigma
                 outliers = s[outlier_mask]
@@ -981,11 +1022,8 @@ with st.expander("이상치 심화 분석", expanded=False):
                 except Exception:
                     st.line_chart(s['current_weight_history'])
             else:
-                order_p = st.sidebar.slider("ARIMA p", 0, 3, 1, key="od_arima_p")
-                order_d = st.sidebar.slider("ARIMA d", 0, 2, 0, key="od_arima_d")
-                order_q = st.sidebar.slider("ARIMA q", 0, 3, 1, key="od_arima_q")
                 try:
-                    model = ARIMA(s['current_weight_history'], order=(order_p, order_d, order_q))
+                    model = ARIMA(s['current_weight_history'], order=(1, 1, 1))
                     res = model.fit()
                     resid = res.resid
                     resid_z = (resid - resid.mean()) / (resid.std() + 1e-9)
@@ -1009,7 +1047,7 @@ with st.expander("계절성/주기성 분석", expanded=False):
     with col1:
         st.write("수액 사용량의 주기적 패턴을 분석합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_seasonal_btn"):
+        if st.button("도움말", key="help_seasonal_btn"):
             st.session_state.show_seasonal_help = not st.session_state.show_seasonal_help
     
     # 도움말 내용 표시
@@ -1161,7 +1199,6 @@ with st.expander("계절성/주기성 분석", expanded=False):
             ts = series2_clean[['timestamp', 'current_weight_history']].dropna()
             ts = ts.set_index('timestamp').asfreq('T')
             ts['current_weight_history'] = ts['current_weight_history'].interpolate(limit_direction='both')
-            period_minutes = st.sidebar.selectbox("주기(분)", [60, 120, 180, 240, 360, 720, 1440], index=6, key="stl_period")
             try:
                 stl = STL(ts['current_weight_history'], period=period_minutes)
                 res = stl.fit()
@@ -1189,7 +1226,7 @@ with st.expander("장비 군집화", expanded=False):
     with col1:
         st.write("사용 패턴이 비슷한 장비들을 그룹으로 분류합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_clustering_btn"):
+        if st.button("도움말", key="help_clustering_btn"):
             st.session_state.show_clustering_help = not st.session_state.show_clustering_help
     
     # 도움말 내용 표시
@@ -1339,12 +1376,6 @@ with st.expander("장비 군집화", expanded=False):
             agg['daily_mean_usage'] = daily_agg
             agg = agg.fillna(0)
             # 스케일링 후 KMeans
-            max_k = min(10, max(2, len(agg)))
-            default_k = min(4, max(2, len(agg)))
-            if max_k == 2:
-                chosen_k = 2
-            else:
-                chosen_k = st.sidebar.slider("클러스터 개수(k)", 2, max_k, default_k, 1, key="kmeans_k")
             try:
                 scaler = StandardScaler()
                 X = scaler.fit_transform(agg.values)
@@ -1375,7 +1406,7 @@ with st.expander("요일-시간대 히트맵 (평균 사용량)", expanded=False
     with col1:
         st.write("요일과 시간대별 수액 사용량 패턴을 색상으로 표시합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_heatmap_btn"):
+        if st.button("도움말", key="help_heatmap_btn"):
             st.session_state.show_heatmap_help = not st.session_state.show_heatmap_help
     
     # 도움말 내용 표시
@@ -1527,7 +1558,7 @@ with st.expander("장비 간 상호 상관관계 분석", expanded=False):
     with col1:
         st.write("두 장비 간의 시간 지연을 고려한 상관관계를 분석합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_crosscorr_btn"):
+        if st.button("도움말", key="help_crosscorr_btn"):
             st.session_state.show_crosscorr_help = not st.session_state.show_crosscorr_help
     
     # 도움말 내용 표시
@@ -1659,7 +1690,6 @@ with st.expander("장비 간 상호 상관관계 분석", expanded=False):
         devs = filtered_clean['loadcel'].unique().tolist()
         a = st.selectbox("장비 A", devs, index=0, help="지연 상관을 계산할 첫 번째 장비입니다.")
         b = st.selectbox("장비 B", devs, index=1 if len(devs) > 1 else 0, help="지연 상관을 계산할 두 번째 장비입니다.")
-        max_lag_req = st.sidebar.slider("최대 지연(분)", 5, 120, 30, 5, key="ccf_lag")
         freq = '1T'
         def usage_series(d):
             ddf = filtered_clean[filtered_clean['loadcel'] == d].sort_values('timestamp')
@@ -1713,7 +1743,7 @@ with st.expander("PCA 시각화", expanded=False):
     with col1:
         st.write("여러 장비의 특성을 2차원으로 압축하여 시각화합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_pca_btn"):
+        if st.button("도움말", key="help_pca_btn"):
             st.session_state.show_pca_help = not st.session_state.show_pca_help
     
     # 도움말 내용 표시
@@ -1876,7 +1906,7 @@ with st.expander("롤링 추세 기울기", expanded=False):
     with col1:
         st.write("시간에 따라 변화하는 수액 소모 속도를 실시간으로 추적합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_rolling_btn"):
+        if st.button("도움말", key="help_rolling_btn"):
             st.session_state.show_rolling_help = not st.session_state.show_rolling_help
     
     # 도움말 내용 표시
@@ -2006,7 +2036,6 @@ with st.expander("롤링 추세 기울기", expanded=False):
         st.info("데이터가 없어 롤링 기울기를 계산할 수 없습니다.")
     else:
         sel_roll = st.selectbox("장비 선택(롤링)", filtered_clean['loadcel'].unique().tolist(), key="roll_sel")
-        win_min = st.sidebar.slider("윈도우(분)", 10, 240, 60, 10, key="roll_win")
         grp = filtered_clean[filtered_clean['loadcel'] == sel_roll].sort_values('timestamp')
         if len(grp) < 5:
             st.info("롤링 계산에 충분한 데이터가 필요합니다.")
@@ -2016,7 +2045,7 @@ with st.expander("롤링 추세 기울기", expanded=False):
             ts = s.index
             vals = s['current_weight_history'].values
             import numpy as np
-            k = win_min
+            k = win_min_roll
             slopes = []
             idxs = []
             for i in range(0, len(vals) - k + 1):
@@ -2047,7 +2076,7 @@ with st.expander("ACF/PACF 분석", expanded=False):
     with col1:
         st.write("수액 사용량의 시간적 패턴과 반복성을 분석합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_acf_btn"):
+        if st.button("도움말", key="help_acf_btn"):
             st.session_state.show_acf_help = not st.session_state.show_acf_help
     
     # 도움말 내용 표시
@@ -2195,7 +2224,6 @@ with st.expander("ACF/PACF 분석", expanded=False):
             else:
                 # 사용 가능한 범위 내에서 랙 설정
                 default_lags = min(40, max_possible_lags)
-                lags = st.sidebar.slider("최대 랙", 10, max_possible_lags, default_lags, 5, key="acf_lags")
                 
                 s4 = series4[['timestamp', 'current_weight_history']].set_index('timestamp').asfreq('T')
                 s4['current_weight_history'] = s4['current_weight_history'].interpolate(limit_direction='both')
@@ -2241,7 +2269,7 @@ with st.expander("ARIMA 예측 분석", expanded=False):
     with col1:
         st.write("수액 사용량의 미래 변화를 수학적 모델로 예측합니다")
     with col2:
-        if st.button("❓ 도움말", key="help_arima_btn"):
+        if st.button("도움말", key="help_arima_btn"):
             st.session_state.show_arima_help = not st.session_state.show_arima_help
     
     # 도움말 내용 표시
@@ -2396,7 +2424,6 @@ with st.expander("ARIMA 예측 분석", expanded=False):
             key="fc_sel",
             help="ARIMA 단기 예측을 수행할 장비입니다."
         )
-        horizon = st.sidebar.slider("예측 구간(분)", 10, 240, 60, 10, key="fc_h")
         series3 = filtered_clean[filtered_clean['loadcel'] == sel_fc].sort_values('timestamp')
         s3 = series3[['timestamp', 'current_weight_history']].dropna()
         if len(s3) < 20:
@@ -2404,9 +2431,6 @@ with st.expander("ARIMA 예측 분석", expanded=False):
         else:
             s3 = s3.set_index('timestamp').asfreq('T')
             s3['current_weight_history'] = s3['current_weight_history'].interpolate(limit_direction='both')
-            order_p = st.sidebar.slider("ARIMA p(예측)", 0, 3, 1, key="fc_p")
-            order_d = st.sidebar.slider("ARIMA d(예측)", 0, 2, 1, key="fc_d")
-            order_q = st.sidebar.slider("ARIMA q(예측)", 0, 3, 1, key="fc_q")
             try:
                 model = ARIMA(s3['current_weight_history'], order=(order_p, order_d, order_q))
                 res = model.fit()
