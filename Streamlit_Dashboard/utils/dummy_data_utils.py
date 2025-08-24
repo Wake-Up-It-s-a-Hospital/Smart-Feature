@@ -10,6 +10,7 @@
 import json
 import os
 from typing import Dict, List, Any, Optional
+import pandas as pd
 from datetime import datetime, timezone, timedelta
 
 # 추가 데이터 파일 경로
@@ -272,8 +273,6 @@ def get_additional_data_for_analysis() -> pd.DataFrame:
         pd.DataFrame: 분석용 데이터프레임
     """
     try:
-        import pandas as pd
-        
         additional_data = load_additional_data_from_json()
         analysis_data = []
         
@@ -321,8 +320,6 @@ def get_combined_analysis_data() -> pd.DataFrame:
         pd.DataFrame: 병합된 분석용 데이터프레임
     """
     try:
-        import pandas as pd
-        
         # 추가 데이터 로드
         additional_df = get_additional_data_for_analysis()
         
