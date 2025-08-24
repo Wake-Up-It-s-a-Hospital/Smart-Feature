@@ -346,13 +346,16 @@ def get_additional_data_for_analysis_exclude_last() -> pd.DataFrame:
                 
                 # 필터링된 데이터 추가
                 for item in filtered_items:
-                    analysis_data.append({
-                        'loadcel': item.get('loadcel'),
-                        'current_weight_history': float(item.get('current_weight_history', 0)),
-                        'remaining_sec_history': int(item.get('remaining_sec_history', 0)),
-                        'timestamp': item.get('timestamp'),
-                        'expire_at': item.get('expire_at')
-                    })
+                    # 무게가 100g 이상인 경우만 추가 (수액 완료 상태 제외)
+                    weight = float(item.get('current_weight_history', 0))
+                    if weight > 100:
+                        analysis_data.append({
+                            'loadcel': item.get('loadcel'),
+                            'current_weight_history': weight,
+                            'remaining_sec_history': int(item.get('remaining_sec_history', 0)),
+                            'timestamp': item.get('timestamp'),
+                            'expire_at': item.get('expire_at')
+                        })
         
         # loadcell 현재 데이터도 추가 (마지막 데이터가 아닌 경우)
         if 'loadcell' in additional_data:
@@ -374,12 +377,19 @@ def get_additional_data_for_analysis_exclude_last() -> pd.DataFrame:
             df['current_weight_history'] = pd.to_numeric(df['current_weight_history'], errors='coerce')
             df['remaining_sec_history'] = pd.to_numeric(df['remaining_sec_history'], errors='coerce')
             df['timestamp'] = pd.to_datetime(df['timestamp'])
+            
+            # 디버깅 정보 출력
+            print(f"🔍 분석용 데이터 로드 완료: {len(df)}개 행, 폴대: {sorted(df['loadcel'].unique())}")
+            
             return df
         else:
+            print("⚠️ 분석용 데이터가 비어있습니다")
             return pd.DataFrame()
         
     except Exception as e:
         print(f"❌ 분석용 데이터 변환 실패 (마지막 데이터 제외): {e}")
+        import traceback
+        traceback.print_exc()
         return pd.DataFrame()
 
 def get_additional_data_for_dashboard_exclude_last() -> Dict[str, Any]:

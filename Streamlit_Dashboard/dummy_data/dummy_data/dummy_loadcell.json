@@ -1,0 +1,65 @@
+{
+  "2": {
+    "loadcel": "2",
+    "current_weight": "711.1",
+    "remaining_sec": "16382",
+    "nurse_call": false,
+    "timestamp": "2025-08-25T03:41:22.301015+09:00"
+  },
+  "3": {
+    "loadcel": "3",
+    "current_weight": "613.5",
+    "remaining_sec": "14135",
+    "nurse_call": false,
+    "timestamp": "2025-08-25T03:41:22.301015+09:00"
+  },
+  "4": {
+    "loadcel": "4",
+    "current_weight": "517.0",
+    "remaining_sec": "11912",
+    "nurse_call": true,
+    "timestamp": "2025-08-25T03:41:22.301015+09:00"
+  },
+  "5": {
+    "loadcel": "5",
+    "current_weight": "752.7",
+    "remaining_sec": "17341",
+    "nurse_call": false,
+    "timestamp": "2025-08-25T03:41:22.301015+09:00"
+  },
+  "6": {
+    "loadcel": "6",
+    "current_weight": "1111.4",
+    "remaining_sec": "25607",
+    "nurse_call": false,
+    "timestamp": "2025-08-25T03:41:22.301015+09:00"
+  },
+  "7": {
+    "loadcel": "7",
+    "current_weight": "725.7",
+    "remaining_sec": "16719",
+    "nurse_call": false,
+    "timestamp": "2025-08-25T03:41:22.301015+09:00"
+  },
+  "8": {
+    "loadcel": "8",
+    "current_weight": "932.3",
+    "remaining_sec": "21479",
+    "nurse_call": false,
+    "timestamp": "2025-08-25T03:41:22.302016+09:00"
+  },
+  "9": {
+    "loadcel": "9",
+    "current_weight": "752.7",
+    "remaining_sec": "17341",
+    "nurse_call": false,
+    "timestamp": "2025-08-25T03:41:22.302016+09:00"
+  },
+  "10": {
+    "loadcel": "10",
+    "current_weight": "528.6",
+    "remaining_sec": "12179",
+    "nurse_call": false,
+    "timestamp": "2025-08-25T03:41:22.302016+09:00"
+  }
+}

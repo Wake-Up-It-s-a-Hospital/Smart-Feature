@@ -79,28 +79,6 @@ check_all_alerts()
 # ====== 사이드바에 알림 리스트 출력 ======
 render_alert_sidebar()
 
-# ====== 데이터 상태 표시 ======
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📊 데이터 상태")
-try:
-    from utils.dummy_data_utils import is_additional_data_available, get_additional_data_summary
-    
-    if is_additional_data_available():
-        summary = get_additional_data_summary()
-        if summary:
-            st.sidebar.success("✅ 데이터 로드 완료")
-            if 'loadcell_history' in summary:
-                st.sidebar.write(f"📊 히스토리: {summary['loadcell_history']['total_items']}개")
-                st.sidebar.write(f"🏗️ 폴대: {summary['loadcell_history']['poles_with_history']}개")
-        else:
-            st.sidebar.info("ℹ️ 데이터 정보 없음")
-    else:
-        st.sidebar.info("ℹ️ 데이터 로드 중")
-except ImportError:
-    st.sidebar.info("ℹ️ 데이터 유틸리티 로드 중")
-except Exception as e:
-    st.sidebar.error(f"❌ 데이터 상태 확인 실패")
-
 st.title("수액 사용 통계 분석")
 
 # 데이터 불러오기
@@ -165,8 +143,31 @@ if df.empty:
     st.warning("아직 기록된 데이터가 없습니다.")
 else:
     # 1. 기간/장비별 필터
-    st.sidebar.header("필터")
-    loadcel_options = df['loadcel'].unique().tolist()
+    st.sidebar.header("수액 사용 통계 분석 조정")
+    
+    # 더미데이터에서 사용 가능한 모든 폴대 ID 가져오기
+    try:
+        from utils.dummy_data_utils import get_additional_pole_ids, is_additional_data_available
+        
+        if is_additional_data_available():
+            # 더미데이터에서 사용 가능한 모든 폴대 ID
+            additional_pole_ids = get_additional_pole_ids()
+            # 실제 데이터에서 가져온 폴대 ID와 병합
+            data_pole_ids = df['loadcel'].unique().tolist()
+            all_pole_ids = list(set(data_pole_ids + additional_pole_ids))
+            # 숫자 순서로 정렬
+            all_pole_ids.sort(key=lambda x: int(x) if str(x).isdigit() else 0)
+            loadcel_options = all_pole_ids
+        else:
+            # 더미데이터가 없는 경우 기존 방식 사용
+            loadcel_options = df['loadcel'].unique().tolist()
+    except ImportError:
+        # 유틸리티가 없는 경우 기존 방식 사용
+        loadcel_options = df['loadcel'].unique().tolist()
+    except Exception:
+        # 오류 발생 시 기존 방식 사용
+        loadcel_options = df['loadcel'].unique().tolist()
+    
     selected_loadcel = st.sidebar.multiselect("장비 선택", loadcel_options, default=loadcel_options)
     start_date = st.sidebar.date_input("시작일", df['timestamp'].min().date())
     end_date = st.sidebar.date_input("종료일", df['timestamp'].max().date())
