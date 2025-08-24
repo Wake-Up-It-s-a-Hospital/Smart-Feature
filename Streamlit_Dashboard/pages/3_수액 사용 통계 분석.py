@@ -303,21 +303,144 @@ with col3:
         mime='text/csv'
     )
 
-# loadcell_history 사용 시 예시 (필요한 곳에 아래와 같이 사용)
-# history = loadcell_history.get(loadcel_id, [])
-# tuple_history = [h for h in history if isinstance(h, tuple) and len(h) == 2]
-# if tuple_history:
-#     timestamps = [h[0] for h in tuple_history]
-#     weights = [h[1] for h in tuple_history]
-#     ...
-
 st.subheader("고급 통계 기능")
 col1, col2, col3 = st.columns(3)
 
-with st.expander("상관관계 분석 (장비별 사용량)", expanded=False):
-    if filtered_clean.empty:
+with st.expander("각 장비 사이의 상관관계", expanded=False):
+    # 도움말 섹션 추가 (expander 대신 버튼으로 토글)
+    if "show_corr_help" not in st.session_state:
+        st.session_state.show_corr_help = False
+        
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.write("여러 장비의 사용량 상관관계를 분석합니다")
+    with col2:
+        if st.button("❓ 도움말", key="help_corr_btn"):
+            st.session_state.show_corr_help = not st.session_state.show_corr_help
+    
+    # 도움말 내용 표시
+    if st.session_state.show_corr_help:
+        st.markdown("---")
+        col_help1, col_help2 = st.columns(2)
+        with col_help1:
+            st.markdown("# 📚 상관관계 분석 가이드")
+            st.markdown("""
+        **📊 상관관계 분석이란?**
+        
+        간단히 말하면: 여러 링거폴대(수액 거치대)의 사용량이 서로 얼마나 연관되어 있는지 분석하는 기능입니다.
+        
+        **예시로 설명하면:**
+        - A 폴대의 수액 사용량이 많아질 때, B 폴대도 함께 많아지는지?
+        - 특정 시간대에 모든 폴대가 동시에 바쁘게 사용되는지?
+        - 어떤 폴대들이 서로 비슷한 패턴으로 사용되는지?
+        
+        **🎯 이 분석으로 무엇을 알 수 있나요?**
+        
+        1. **병실 배치 최적화**
+           - 사용량이 함께 증가하는 폴대들을 같은 구역에 배치
+           - 간호사가 한 번에 여러 폴대를 관리할 수 있도록 배치
+        
+        2. **인력 배치 효율성**
+           - 모든 폴대가 동시에 바쁘게 사용되는 시간대 파악
+           - 그 시간대에 간호사 추가 배치 고려
+        
+        3. **자원 계획 수립**
+           - 연관된 폴대들의 총 사용량 예측
+           - 수액 재고 및 구매 계획 수립에 활용
+        
+        **📈 결과 해석 방법**
+        
+        상관계수는 -1에서 +1 사이의 값입니다:
+        
+        🔴 **+0.7 ~ +1.0**: 매우 강한 양의 상관관계
+        - 두 폴대의 사용량이 거의 항상 함께 증가/감소
+        
+        🟠 **+0.3 ~ +0.7**: 중간 정도의 양의 상관관계  
+        - 두 폴대의 사용량이 어느 정도 함께 변화
+        
+        🟡 **-0.3 ~ +0.3**: 약한 상관관계
+        - 두 폴대 간에 특별한 연관성 없음
+        
+        🟢 **-0.7 ~ -0.3**: 중간 정도의 음의 상관관계
+        - 한 폴대가 증가할 때 다른 폴대는 감소하는 경향
+        
+        🔵 **-1.0 ~ -0.7**: 매우 강한 음의 상관관계
+        - 한 폴대가 증가할 때 다른 폴대는 확실히 감소
+        
+        **💡 실제 활용 팁**
+        
+        **높은 상관관계가 발견되면:**
+        - 해당 폴대들을 같은 간호사가 담당하도록 배치
+        - 같은 시간대에 점검 및 관리 업무 수행
+        - 비상 상황 시 대체 폴대로 활용 가능성 검토
+        
+        **낮은 상관관계가 발견되면:**
+        - 각 폴대를 독립적으로 관리해도 무방
+        - 개별적인 사용량 예측 및 계획 수립
+        
+
+        """)
+            
+        with col_help2:
+            st.markdown("# 📊 그래프 해석 가이드")
+            st.markdown("""
+        ### **🌐 상관관계 네트워크**
+        - **노드(원)**: 각 링거폴대
+        - **선의 색상**: 상관관계 강도
+            - 🔴 빨간색: 강한 상관관계 (>0.7)
+            - 🟠 주황색: 중간 상관관계 (0.5~0.7)
+            - 🟡 노란색: 약한 상관관계 (0.3~0.5)
+            - ⚪ 연한 회색: 매우 약한 상관관계 (<0.3)
+        - **선의 두께**: 상관관계가 강할수록 굵음
+        - **선의 스타일**: 실선(양의), 점선(음의)
+        
+        **📊 상관관계 막대그래프**
+        - **가로 막대**: 각 장비 쌍의 상관관계
+        - **막대 길이**: 상관계수 절댓값 (길수록 강함)
+        - **색상**: 빨간색(양의), 파란색(음의)
+        - **순서**: 상관관계가 강한 순서대로 정렬
+
+        ### **🔍 산점도 (장비 비교)**
+        - **X축**: 첫 번째 장비 사용량
+        - **Y축**: 두 번째 장비 사용량
+        - **패턴 해석**:
+            - ↗️ 오른쪽 위로 향하는 점들: 양의 상관관계
+            - ↖️ 왼쪽 위로 향하는 점들: 음의 상관관계
+            - 🔀 점들이 흩어져 있음: 무상관
+        - **상관계수**: 그래프 우상단에 표시
+        
+        **🥧 상관관계 분포**
+        - **원형 차트**: 전체 상관관계의 강도별 분포
+        - **색상**: 강한 양의(빨강) → 약한(노랑) → 음의(파랑)
+        - **비율**: 각 강도별 상관관계가 차지하는 비율
+        
+        ### **💡 실용적 활용 팁**
+                
+        **높은 양의 상관관계 발견 시:**
+        - 해당 폴대들을 같은 구역에 배치
+        - 한 명의 간호사가 동시에 관리
+        - 수액 재고를 함께 준비
+        
+        **높은 음의 상관관계 발견 시:**
+        - 두 폴대를 다른 구역에 분리
+        - 다른 간호사가 각각 담당
+        - 대체 치료로 활용 가능성 검토
+        
+        **낮은 상관관계 발견 시:**
+        - 각 폴대를 독립적으로 관리
+        - 개별적인 사용량 예측 및 계획 수립
+        """)
+        
+        if st.button("도움말 닫기", key="close_corr_help"):
+            st.session_state.show_corr_help = False
+            st.rerun()
+    
+    # 데이터 검증
+    if 'filtered_clean' not in locals() or filtered_clean.empty:
         st.info("선택된 기간/장비 조건에 데이터가 없어 상관관계를 계산할 수 없습니다.")
     else:
+        
+        # 기존 상관관계 분석 코드
         corr_freq_label = st.sidebar.selectbox("상관관계 집계 간격", ["15분", "30분", "1시간"], index=2, key="corr_freq_select")
         freq_map = {"15분": "15T", "30분": "30T", "1시간": "1H"}
         freq = freq_map[corr_freq_label]
@@ -327,6 +450,7 @@ with st.expander("상관관계 분석 (장비별 사용량)", expanded=False):
         df_corr['prev_weight'] = df_corr.groupby('loadcel')['current_weight_history'].shift(1)
         df_corr['usage'] = (df_corr['prev_weight'] - df_corr['current_weight_history']).clip(lower=0)
         df_corr = df_corr.dropna(subset=['timestamp'])
+        
         try:
             df_resampled = (df_corr.set_index('timestamp')
                                         .groupby('loadcel')
@@ -338,9 +462,205 @@ with st.expander("상관관계 분석 (장비별 사용량)", expanded=False):
                 st.info("두 개 이상 장비가 있어야 상관관계를 계산할 수 있습니다.")
             else:
                 corr_mat = usage_wide.corr()
-                fig = px.imshow(corr_mat, text_auto=True, zmin=-1, zmax=1, color_continuous_scale='RdBu')
-                fig.update_layout(title="장비별 사용량 상관관계")
-                st.plotly_chart(fig, use_container_width=True)
+                
+                # 2x2 그리드로 그래프 배치
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # 1. 네트워크 그래프 (상관관계가 높은 것만 연결)
+                    st.subheader("🌐 상관관계 네트워크")
+                    try:
+                        import networkx as nx
+                        import plotly.graph_objects as go
+                        
+                        # 상관관계가 높은 것만 연결 (임계값 0.3)
+                        threshold = 0.3
+                        edges = []
+                        for i in range(len(corr_mat.columns)):
+                            for j in range(i+1, len(corr_mat.columns)):
+                                if abs(corr_mat.iloc[i,j]) > threshold:
+                                    edges.append((corr_mat.columns[i], corr_mat.columns[j], corr_mat.iloc[i,j]))
+                        
+                        if edges:
+                            G = nx.Graph()
+                            for edge in edges:
+                                G.add_edge(edge[0], edge[1], weight=edge[2])
+                            
+                            # 네트워크 레이아웃
+                            pos = nx.spring_layout(G, k=1, iterations=50)
+                            
+                            # 노드 그리기
+                            node_x = [pos[node][0] for node in G.nodes()]
+                            node_y = [pos[node][1] for node in G.nodes()]
+                            
+                            # 네트워크 그래프 생성
+                            fig_network = go.Figure()
+                            
+                            # 엣지 추가 (상관관계 강도에 따른 색상)
+                            # 상관계수 절댓값에 따라 색상과 두께 결정
+                            for edge in G.edges(data=True):
+                                x0, y0 = pos[edge[0]]
+                                x1, y1 = pos[edge[1]]
+                                corr_strength = abs(edge[2]['weight'])
+                                
+                                # 상관관계 강도에 따른 색상 결정
+                                if corr_strength > 0.7:
+                                    color = 'red'  # 강한 양의 상관관계
+                                    width = 4
+                                elif corr_strength > 0.5:
+                                    color = 'orange'  # 중간 양의 상관관계
+                                    width = 3
+                                elif corr_strength > 0.3:
+                                    color = 'yellow'  # 약한 양의 상관관계
+                                    width = 2
+                                else:
+                                    color = 'lightgray'  # 매우 약한 상관관계
+                                    width = 1
+                                
+                                # 양의/음의 상관관계에 따른 선 스타일
+                                line_style = 'solid' if edge[2]['weight'] > 0 else 'dash'
+                                
+                                fig_network.add_trace(go.Scatter(
+                                    x=[x0, x1], y=[y0, y1],
+                                    line=dict(width=width, color=color, dash=line_style),
+                                    hoverinfo='text',
+                                    hovertext=f"{edge[0]} ↔ {edge[1]}<br>상관계수: {edge[2]['weight']:.3f}",
+                                    mode='lines',
+                                    showlegend=False
+                                ))
+                            
+                            # 노드 추가
+                            fig_network.add_trace(go.Scatter(
+                                x=node_x, y=node_y,
+                                mode='markers+text',
+                                marker=dict(size=20, color='lightblue', line=dict(width=2, color='darkblue')),
+                                text=list(G.nodes()),
+                                textposition="middle center",
+                                hoverinfo='text'
+                            ))
+                            
+                            fig_network.update_layout(
+                                title=f"선의 색이 붉을수록 상관관계가 높습니다.",
+                                showlegend=False,
+                                hovermode='closest',
+                                margin=dict(b=20,l=5,r=5,t=40),
+                                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                width=400,
+                                height=450
+                            )
+                            
+                            st.plotly_chart(fig_network, use_container_width=True)
+                        else:
+                            st.info("임계값을 만족하는 상관관계가 없습니다.")
+                    except Exception as e:
+                        st.warning(f"네트워크 그래프 생성 오류: {e}")
+                    
+                    # 2. 막대그래프 (상관관계 계수)
+                    st.subheader("📊 상관관계 막대그래프")
+                    try:
+                        # 상관관계를 1차원으로 변환
+                        corr_pairs = []
+                        for i in range(len(corr_mat.columns)):
+                            for j in range(i+1, len(corr_mat.columns)):
+                                corr_pairs.append({
+                                    'pair': f"{corr_mat.columns[i]}-{corr_mat.columns[j]}",
+                                    'correlation': corr_mat.iloc[i,j]
+                                })
+                        
+                        corr_df = pd.DataFrame(corr_pairs)
+                        corr_df = corr_df.sort_values('correlation', ascending=False)
+                        
+                        fig_bar = px.bar(
+                            corr_df, 
+                            x='correlation', 
+                            y='pair',
+                            orientation='h',
+                            color='correlation',
+                            color_continuous_scale='RdBu',
+                            title="장비 간 상관관계 계수"
+                        )
+                        fig_bar.update_layout(
+                            width=400,
+                            height=450,
+                            xaxis_title="상관계수",
+                            yaxis_title="장비 쌍"
+                        )
+                        st.plotly_chart(fig_bar, use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"막대그래프 생성 오류: {e}")
+                
+                with col2:
+                    # 3. 산점도 (첫 번째 vs 두 번째 장비)
+                    st.subheader("🔍 산점도 (장비 비교)")
+                    try:
+                        if len(corr_mat.columns) >= 2:
+                            # 첫 번째와 두 번째 장비 선택
+                            device1 = corr_mat.columns[0]
+                            device2 = corr_mat.columns[1]
+                            
+                            # 해당 장비들의 사용량 데이터 추출
+                            device1_data = usage_wide[device1]
+                            device2_data = usage_wide[device2]
+                            
+                            # 산점도 생성
+                            fig_scatter = px.scatter(
+                                x=device1_data,
+                                y=device2_data,
+                                title=f"{device1} vs {device2} 사용량 산점도",
+                                labels={'x': f'{device1} 사용량', 'y': f'{device2} 사용량'}
+                            )
+                            
+                            # 상관계수 표시
+                            corr_value = corr_mat.loc[device1, device2]
+                            fig_scatter.add_annotation(
+                                x=0.05, y=0.95, xref='paper', yref='paper',
+                                text=f'상관계수: {corr_value:.3f}',
+                                showarrow=False,
+                                bgcolor='rgba(255,255,255,0.8)',
+                                bordercolor='black',
+                                borderwidth=1
+                            )
+                            
+                            fig_scatter.update_layout(
+                                width=400,
+                                height=450
+                            )
+                            st.plotly_chart(fig_scatter, use_container_width=True)
+                        else:
+                            st.info("산점도를 그리려면 최소 2개 장비가 필요합니다.")
+                    except Exception as e:
+                        st.warning(f"산점도 생성 오류: {e}")
+                    
+                    # 4. 원형 차트 (상관관계 분포)
+                    st.subheader("🥧 상관관계 분포")
+                    try:
+                        # 상관관계 강도별 분류
+                        strong_pos = (corr_mat > 0.7).sum().sum() - len(corr_mat)  # 대각선 제외
+                        moderate_pos = ((corr_mat > 0.3) & (corr_mat <= 0.7)).sum().sum()
+                        weak = ((corr_mat > -0.3) & (corr_mat <= 0.3)).sum().sum()
+                        moderate_neg = ((corr_mat < -0.3) & (corr_mat >= -0.7)).sum().sum()
+                        strong_neg = (corr_mat < -0.7).sum().sum()
+                        
+                        categories = ['강한 양의 상관관계', '중간 양의 상관관계', '약한 상관관계', '중간 음의 상관관계', '강한 음의 상관관계']
+                        values = [strong_pos, moderate_pos, weak, moderate_neg, strong_neg]
+                        colors = ['red', 'orange', 'yellow', 'lightblue', 'blue']
+                        
+                        fig_pie = px.pie(
+                            values=values,
+                            names=categories,
+                            title="상관관계 강도 분포",
+                            color_discrete_sequence=colors
+                        )
+                        
+                        fig_pie.update_layout(
+                            width=400,
+                            height=450
+                        )
+                        st.plotly_chart(fig_pie, use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"원형 차트 생성 오류: {e}")
+                
         except Exception as e:
             st.warning(f"상관관계 분석 중 오류가 발생했습니다: {e}")
 
@@ -509,56 +829,6 @@ with st.expander("장비 클러스터링 (KMeans)", expanded=False):
                 st.plotly_chart(fig6, use_container_width=True)
             except Exception as e:
                 st.warning(f"클러스터링 중 오류: {e}")
-
-with st.expander("다중회귀: 시간대/요일 영향 분석", expanded=False):
-    if filtered_clean.empty:
-        st.info("데이터가 없어 회귀 분석을 수행할 수 없습니다.")
-    else:
-        reg_freq_label = st.sidebar.selectbox(
-            "회귀 집계 간격",
-            ["15분", "30분", "1시간"],
-            index=2,
-            key="reg_freq",
-            help="회귀에 사용할 집계 간격입니다. 시간/요일 더미와 함께 사용량을 해당 간격으로 합산합니다."
-        )
-        freq_map = {"15분": "15T", "30분": "30T", "1시간": "1H"}
-        rf = freq_map[reg_freq_label]
-        use_device_dummies = st.sidebar.checkbox("장비 더미 포함", value=False, key="reg_dev_dummy")
-        tmp = filtered_clean.copy().sort_values('timestamp')
-        tmp['prev_weight'] = tmp.groupby('loadcel')['current_weight_history'].shift(1)
-        tmp['usage'] = (tmp['prev_weight'] - tmp['current_weight_history']).clip(lower=0) / 1000
-        # 시간대/요일 특성 생성
-        tmp['hour'] = tmp['timestamp'].dt.hour
-        tmp['weekday'] = tmp['timestamp'].dt.weekday
-        # 리샘플: 장비별 합산 후 전체 합산(장비 효과는 더미로 보완 가능)
-        df_res = (tmp.set_index('timestamp')
-                    .groupby('loadcel')
-                    .resample(rf)['usage']
-                    .sum()
-                    .reset_index())
-        # 특성 병합
-        df_res['hour'] = df_res['timestamp'].dt.hour
-        df_res['weekday'] = df_res['timestamp'].dt.weekday
-        # 설계행렬
-        feats = ['hour', 'weekday']
-        X = pd.get_dummies(df_res[feats], columns=['hour', 'weekday'], drop_first=True)
-        if use_device_dummies:
-            X = pd.concat([X, pd.get_dummies(df_res['loadcel'].astype(str), prefix='dev', drop_first=True)], axis=1)
-        y = df_res['usage'].fillna(0)
-        X = sm.add_constant(X, has_constant='add')
-        try:
-            model = sm.OLS(y, X)
-            res = model.fit()
-            coef = res.params.rename('coef').to_frame()
-            pvals = res.pvalues.rename('pvalue').to_frame()
-            out = coef.join(pvals, how='left')
-            out['abs_coef'] = out['coef'].abs()
-            out = out.sort_values('abs_coef', ascending=False).drop(columns=['abs_coef'])
-            st.dataframe(out, use_container_width=True)
-            st.caption("계수는 사용량(kg) 변화량에 대한 기여 추정치입니다. p-value가 낮을수록 통계적으로 유의합니다.")
-        except Exception as e:
-            st.warning(f"회귀 적합 중 오류: {e}")
-
 
 with st.expander("예측: ARIMA 단기 예측", expanded=False):
     if filtered_clean.empty:
