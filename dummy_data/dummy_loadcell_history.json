@@ -1,0 +1,674 @@
+[
+  {
+    "loadcel": "2",
+    "current_weight_history": "1065.9",
+    "remaining_sec_history": "30697",
+    "timestamp": "2025-08-23T23:54:46.070376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "842.9",
+    "remaining_sec_history": "24276",
+    "timestamp": "2025-08-24T00:54:46.070376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "794.4",
+    "remaining_sec_history": "22880",
+    "timestamp": "2025-08-24T01:54:46.070376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "884.2",
+    "remaining_sec_history": "25464",
+    "timestamp": "2025-08-24T02:54:46.070376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "913.9",
+    "remaining_sec_history": "26320",
+    "timestamp": "2025-08-24T03:54:46.070376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "729.9",
+    "remaining_sec_history": "21021",
+    "timestamp": "2025-08-24T04:54:46.070376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "780.3",
+    "remaining_sec_history": "22472",
+    "timestamp": "2025-08-24T05:54:46.070376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "964.0",
+    "remaining_sec_history": "27763",
+    "timestamp": "2025-08-24T06:54:46.070376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "1010.6",
+    "remaining_sec_history": "29106",
+    "timestamp": "2025-08-24T07:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "567.0",
+    "remaining_sec_history": "16329",
+    "timestamp": "2025-08-24T08:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "454.4",
+    "remaining_sec_history": "13087",
+    "timestamp": "2025-08-24T09:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "483.0",
+    "remaining_sec_history": "13910",
+    "timestamp": "2025-08-24T10:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "632.8",
+    "remaining_sec_history": "18223",
+    "timestamp": "2025-08-24T11:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "511.5",
+    "remaining_sec_history": "14731",
+    "timestamp": "2025-08-24T12:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "618.2",
+    "remaining_sec_history": "17803",
+    "timestamp": "2025-08-24T13:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "537.0",
+    "remaining_sec_history": "15466",
+    "timestamp": "2025-08-24T14:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "548.2",
+    "remaining_sec_history": "15787",
+    "timestamp": "2025-08-24T15:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "226.9",
+    "remaining_sec_history": "6533",
+    "timestamp": "2025-08-24T16:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "508.0",
+    "remaining_sec_history": "14630",
+    "timestamp": "2025-08-24T17:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "585.2",
+    "remaining_sec_history": "16852",
+    "timestamp": "2025-08-24T18:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "397.3",
+    "remaining_sec_history": "11443",
+    "timestamp": "2025-08-24T19:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "303.4",
+    "remaining_sec_history": "8736",
+    "timestamp": "2025-08-24T20:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "462.0",
+    "remaining_sec_history": "13306",
+    "timestamp": "2025-08-24T21:54:46.071375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "2",
+    "current_weight_history": "304.7",
+    "remaining_sec_history": "8774",
+    "timestamp": "2025-08-24T22:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "877.5",
+    "remaining_sec_history": "25271",
+    "timestamp": "2025-08-23T23:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "1176.0",
+    "remaining_sec_history": "33869",
+    "timestamp": "2025-08-24T00:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "832.3",
+    "remaining_sec_history": "23971",
+    "timestamp": "2025-08-24T01:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "1092.6",
+    "remaining_sec_history": "31466",
+    "timestamp": "2025-08-24T02:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "851.0",
+    "remaining_sec_history": "24509",
+    "timestamp": "2025-08-24T03:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "941.3",
+    "remaining_sec_history": "27110",
+    "timestamp": "2025-08-24T04:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "764.5",
+    "remaining_sec_history": "22017",
+    "timestamp": "2025-08-24T05:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "940.9",
+    "remaining_sec_history": "27097",
+    "timestamp": "2025-08-24T06:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "914.1",
+    "remaining_sec_history": "26324",
+    "timestamp": "2025-08-24T07:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "839.3",
+    "remaining_sec_history": "24170",
+    "timestamp": "2025-08-24T08:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "721.3",
+    "remaining_sec_history": "20772",
+    "timestamp": "2025-08-24T09:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "655.9",
+    "remaining_sec_history": "18889",
+    "timestamp": "2025-08-24T10:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "584.0",
+    "remaining_sec_history": "16817",
+    "timestamp": "2025-08-24T11:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "555.1",
+    "remaining_sec_history": "15987",
+    "timestamp": "2025-08-24T12:54:46.072376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "483.1",
+    "remaining_sec_history": "13912",
+    "timestamp": "2025-08-24T13:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "588.6",
+    "remaining_sec_history": "16952",
+    "timestamp": "2025-08-24T14:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "626.0",
+    "remaining_sec_history": "18029",
+    "timestamp": "2025-08-24T15:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "486.3",
+    "remaining_sec_history": "14004",
+    "timestamp": "2025-08-24T16:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "238.2",
+    "remaining_sec_history": "6859",
+    "timestamp": "2025-08-24T17:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "558.8",
+    "remaining_sec_history": "16094",
+    "timestamp": "2025-08-24T18:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "265.2",
+    "remaining_sec_history": "7636",
+    "timestamp": "2025-08-24T19:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "471.1",
+    "remaining_sec_history": "13568",
+    "timestamp": "2025-08-24T20:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "289.0",
+    "remaining_sec_history": "8322",
+    "timestamp": "2025-08-24T21:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "3",
+    "current_weight_history": "201.2",
+    "remaining_sec_history": "5793",
+    "timestamp": "2025-08-24T22:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "1102.3",
+    "remaining_sec_history": "31747",
+    "timestamp": "2025-08-23T23:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "906.1",
+    "remaining_sec_history": "26094",
+    "timestamp": "2025-08-24T00:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "1148.5",
+    "remaining_sec_history": "33077",
+    "timestamp": "2025-08-24T01:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "799.3",
+    "remaining_sec_history": "23019",
+    "timestamp": "2025-08-24T02:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "867.9",
+    "remaining_sec_history": "24994",
+    "timestamp": "2025-08-24T03:54:46.073375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "748.3",
+    "remaining_sec_history": "21550",
+    "timestamp": "2025-08-24T04:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "833.2",
+    "remaining_sec_history": "23995",
+    "timestamp": "2025-08-24T05:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "655.7",
+    "remaining_sec_history": "18883",
+    "timestamp": "2025-08-24T06:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "545.0",
+    "remaining_sec_history": "15697",
+    "timestamp": "2025-08-24T07:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "767.9",
+    "remaining_sec_history": "22115",
+    "timestamp": "2025-08-24T08:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "698.3",
+    "remaining_sec_history": "20112",
+    "timestamp": "2025-08-24T09:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "760.4",
+    "remaining_sec_history": "21900",
+    "timestamp": "2025-08-24T10:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "532.5",
+    "remaining_sec_history": "15334",
+    "timestamp": "2025-08-24T11:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "550.2",
+    "remaining_sec_history": "15844",
+    "timestamp": "2025-08-24T12:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "771.8",
+    "remaining_sec_history": "22227",
+    "timestamp": "2025-08-24T13:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "713.1",
+    "remaining_sec_history": "20538",
+    "timestamp": "2025-08-24T14:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "533.6",
+    "remaining_sec_history": "15367",
+    "timestamp": "2025-08-24T15:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "691.8",
+    "remaining_sec_history": "19924",
+    "timestamp": "2025-08-24T16:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "433.9",
+    "remaining_sec_history": "12496",
+    "timestamp": "2025-08-24T17:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "727.4",
+    "remaining_sec_history": "20949",
+    "timestamp": "2025-08-24T18:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "249.5",
+    "remaining_sec_history": "7185",
+    "timestamp": "2025-08-24T19:54:46.074375+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "441.7",
+    "remaining_sec_history": "12720",
+    "timestamp": "2025-08-24T20:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "100",
+    "remaining_sec_history": "2880",
+    "timestamp": "2025-08-24T21:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "4",
+    "current_weight_history": "461.5",
+    "remaining_sec_history": "13292",
+    "timestamp": "2025-08-24T22:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "817.3",
+    "remaining_sec_history": "23539",
+    "timestamp": "2025-08-23T23:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "937.1",
+    "remaining_sec_history": "26987",
+    "timestamp": "2025-08-24T00:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "933.1",
+    "remaining_sec_history": "26873",
+    "timestamp": "2025-08-24T01:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "1027.4",
+    "remaining_sec_history": "29588",
+    "timestamp": "2025-08-24T02:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "735.7",
+    "remaining_sec_history": "21188",
+    "timestamp": "2025-08-24T03:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "955.0",
+    "remaining_sec_history": "27503",
+    "timestamp": "2025-08-24T04:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "851.9",
+    "remaining_sec_history": "24535",
+    "timestamp": "2025-08-24T05:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "679.9",
+    "remaining_sec_history": "19581",
+    "timestamp": "2025-08-24T06:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "760.9",
+    "remaining_sec_history": "21915",
+    "timestamp": "2025-08-24T07:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "796.5",
+    "remaining_sec_history": "22938",
+    "timestamp": "2025-08-24T08:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "737.5",
+    "remaining_sec_history": "21238",
+    "timestamp": "2025-08-24T09:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "555.0",
+    "remaining_sec_history": "15984",
+    "timestamp": "2025-08-24T10:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "618.4",
+    "remaining_sec_history": "17809",
+    "timestamp": "2025-08-24T11:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "568.0",
+    "remaining_sec_history": "16357",
+    "timestamp": "2025-08-24T12:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "683.6",
+    "remaining_sec_history": "19688",
+    "timestamp": "2025-08-24T13:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "276.5",
+    "remaining_sec_history": "7963",
+    "timestamp": "2025-08-24T14:54:46.075376+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "355.6",
+    "remaining_sec_history": "10241",
+    "timestamp": "2025-08-24T15:54:46.076682+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "536.0",
+    "remaining_sec_history": "15436",
+    "timestamp": "2025-08-24T16:54:46.076682+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "330.8",
+    "remaining_sec_history": "9528",
+    "timestamp": "2025-08-24T17:54:46.076682+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "377.5",
+    "remaining_sec_history": "10872",
+    "timestamp": "2025-08-24T18:54:46.076682+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "257.7",
+    "remaining_sec_history": "7422",
+    "timestamp": "2025-08-24T19:54:46.076682+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "499.7",
+    "remaining_sec_history": "14390",
+    "timestamp": "2025-08-24T20:54:46.076682+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "126.5",
+    "remaining_sec_history": "3644",
+    "timestamp": "2025-08-24T21:54:46.076682+09:00",
+    "expire_at": 1756652086
+  },
+  {
+    "loadcel": "5",
+    "current_weight_history": "309.0",
+    "remaining_sec_history": "8899",
+    "timestamp": "2025-08-24T22:54:46.076682+09:00",
+    "expire_at": 1756652086
+  }
+]

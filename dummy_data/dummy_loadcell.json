@@ -1,0 +1,30 @@
+{
+  "2": {
+    "loadcel": "2",
+    "current_weight": "492.7",
+    "remaining_sec": "14189",
+    "nurse_call": false,
+    "timestamp": "2025-08-24T23:54:46.068376+09:00"
+  },
+  "3": {
+    "loadcel": "3",
+    "current_weight": "711.0",
+    "remaining_sec": "20476",
+    "nurse_call": false,
+    "timestamp": "2025-08-24T23:54:46.068376+09:00"
+  },
+  "4": {
+    "loadcel": "4",
+    "current_weight": "822.3",
+    "remaining_sec": "23683",
+    "nurse_call": false,
+    "timestamp": "2025-08-24T23:54:46.068376+09:00"
+  },
+  "5": {
+    "loadcel": "5",
+    "current_weight": "633.0",
+    "remaining_sec": "18230",
+    "nurse_call": false,
+    "timestamp": "2025-08-24T23:54:46.068376+09:00"
+  }
+}

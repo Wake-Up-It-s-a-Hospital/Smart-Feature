@@ -1,0 +1,30 @@
+{
+  "2": {
+    "pole_id": "2",
+    "battery_level": 3,
+    "is_lost": false,
+    "tare_requested": false,
+    "timestamp": "2025-08-24T23:54:46.069376+09:00"
+  },
+  "3": {
+    "pole_id": "3",
+    "battery_level": 2,
+    "is_lost": false,
+    "tare_requested": false,
+    "timestamp": "2025-08-24T23:54:46.069376+09:00"
+  },
+  "4": {
+    "pole_id": "4",
+    "battery_level": 3,
+    "is_lost": true,
+    "tare_requested": false,
+    "timestamp": "2025-08-24T23:54:46.069376+09:00"
+  },
+  "5": {
+    "pole_id": "5",
+    "battery_level": 3,
+    "is_lost": false,
+    "tare_requested": true,
+    "timestamp": "2025-08-24T23:54:46.069376+09:00"
+  }
+}
