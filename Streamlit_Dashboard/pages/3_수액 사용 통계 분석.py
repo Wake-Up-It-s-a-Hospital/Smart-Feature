@@ -108,11 +108,11 @@ st.title("수액 사용 통계 분석")
 def get_history_df():
     # 추가 데이터와 실제 DB 데이터를 병합하여 반환
     try:
-        from utils.dummy_data_utils import get_combined_analysis_data, is_additional_data_available
+        from utils.dummy_data_utils import get_additional_data_for_analysis_exclude_last, is_additional_data_available
         
         if is_additional_data_available():
-            # 추가 데이터 사용
-            df = get_combined_analysis_data()
+            # 추가 데이터 사용 (마지막 데이터 제외)
+            df = get_additional_data_for_analysis_exclude_last()
             # 성공 메시지는 표시하지 않음 (사용자에게는 투명하게)
             return df
         else:

@@ -29,6 +29,7 @@ def test_analysis_dummy_data():
     
     try:
         from utils.dummy_data_utils import (
+            get_additional_data_for_analysis_exclude_last,
             get_additional_data_for_analysis,
             get_combined_analysis_data,
             is_additional_data_available
@@ -89,9 +90,9 @@ def test_pandas_operations():
     print("\n🔍 Pandas 연산 테스트...")
     
     try:
-        from utils.dummy_data_utils import get_additional_data_for_analysis
+        from utils.dummy_data_utils import get_additional_data_for_analysis_exclude_last
         
-        df = get_additional_data_for_analysis()
+        df = get_additional_data_for_analysis_exclude_last()
         if df.empty:
             print("⚠️ 테스트할 데이터가 없습니다")
             return False
@@ -128,9 +129,9 @@ def test_data_quality():
     print("\n🔍 데이터 품질 테스트...")
     
     try:
-        from utils.dummy_data_utils import get_additional_data_for_analysis
+        from utils.dummy_data_utils import get_additional_data_for_analysis_exclude_last
         
-        df = get_additional_data_for_analysis()
+        df = get_additional_data_for_analysis_exclude_last()
         if df.empty:
             print("⚠️ 테스트할 데이터가 없습니다")
             return False
@@ -175,9 +176,9 @@ def plot_weight_changes():
     print("\n📊 무게 변화 그래프 생성 중...")
     
     try:
-        from utils.dummy_data_utils import get_additional_data_for_analysis
+        from utils.dummy_data_utils import get_additional_data_for_analysis_exclude_last
         
-        df = get_additional_data_for_analysis()
+        df = get_additional_data_for_analysis_exclude_last()
         if df.empty:
             print("⚠️ 테스트할 데이터가 없습니다")
             return False

@@ -312,6 +312,156 @@ def get_additional_data_for_analysis() -> pd.DataFrame:
         print(f"❌ 분석용 데이터 변환 실패: {e}")
         return pd.DataFrame()
 
+def get_additional_data_for_analysis_exclude_last() -> pd.DataFrame:
+    """
+    분석 페이지에서 사용할 수 있는 형태로 추가 데이터를 변환합니다.
+    마지막 1개 데이터(수액 완료 상태)는 제외합니다.
+    
+    Returns:
+        pd.DataFrame: 마지막 데이터가 제외된 분석용 데이터프레임
+    """
+    try:
+        additional_data = load_additional_data_from_json()
+        analysis_data = []
+        
+        # loadcell_history 데이터를 분석용 데이터프레임으로 변환
+        if 'loadcell_history' in additional_data:
+            # 폴대별로 데이터 그룹화
+            pole_groups = {}
+            for item in additional_data['loadcell_history']:
+                pole_id = item.get('loadcel')
+                if pole_id not in pole_groups:
+                    pole_groups[pole_id] = []
+                pole_groups[pole_id].append(item)
+            
+            # 각 폴대별로 마지막 1개 데이터 제외
+            for pole_id, items in pole_groups.items():
+                # 시간순 정렬
+                sorted_items = sorted(items, key=lambda x: x.get('timestamp', ''))
+                # 마지막 1개 제외 (데이터가 2개 이상인 경우)
+                if len(sorted_items) > 1:
+                    filtered_items = sorted_items[:-1]
+                else:
+                    filtered_items = sorted_items
+                
+                # 필터링된 데이터 추가
+                for item in filtered_items:
+                    analysis_data.append({
+                        'loadcel': item.get('loadcel'),
+                        'current_weight_history': float(item.get('current_weight_history', 0)),
+                        'remaining_sec_history': int(item.get('remaining_sec_history', 0)),
+                        'timestamp': item.get('timestamp'),
+                        'expire_at': item.get('expire_at')
+                    })
+        
+        # loadcell 현재 데이터도 추가 (마지막 데이터가 아닌 경우)
+        if 'loadcell' in additional_data:
+            for pole_id, pole_data in additional_data['loadcell'].items():
+                # 현재 데이터가 마지막 데이터가 아닌 경우에만 추가
+                current_weight = float(pole_data.get('current_weight', 0))
+                if current_weight > 100:  # 100g 이상인 경우만 추가
+                    analysis_data.append({
+                        'loadcel': pole_id,
+                        'current_weight_history': current_weight,
+                        'remaining_sec_history': int(pole_data.get('remaining_sec', 0)),
+                        'timestamp': pole_data.get('timestamp'),
+                        'expire_at': None
+                    })
+        
+        if analysis_data:
+            df = pd.DataFrame(analysis_data)
+            # 데이터 타입 변환
+            df['current_weight_history'] = pd.to_numeric(df['current_weight_history'], errors='coerce')
+            df['remaining_sec_history'] = pd.to_numeric(df['remaining_sec_history'], errors='coerce')
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            return df
+        else:
+            return pd.DataFrame()
+        
+    except Exception as e:
+        print(f"❌ 분석용 데이터 변환 실패 (마지막 데이터 제외): {e}")
+        return pd.DataFrame()
+
+def get_additional_data_for_dashboard_exclude_last() -> Dict[str, Any]:
+    """
+    대시보드에서 사용할 수 있는 형태로 추가 데이터를 변환합니다.
+    마지막 1개 데이터(수액 완료 상태)는 제외합니다.
+    
+    Returns:
+        Dict[str, Any]: 마지막 데이터가 제외된 대시보드용 데이터
+    """
+    try:
+        additional_data = load_additional_data_from_json()
+        dashboard_data = {}
+        
+        # loadcell 데이터를 대시보드 형식으로 변환
+        if 'loadcell' in additional_data:
+            for pole_id, pole_data in additional_data['loadcell'].items():
+                current_weight = float(pole_data.get('current_weight', 0))
+                # 현재 무게가 100g 이상인 경우만 추가 (수액 완료 상태 제외)
+                if current_weight > 100:
+                    dashboard_data[pole_id] = {
+                        'current_weight': current_weight,
+                        'remaining_sec': int(pole_data.get('remaining_sec', 0)),
+                        'nurse_call': pole_data.get('nurse_call', False),
+                        'timestamp': pole_data.get('timestamp', ''),
+                        'battery_level': None  # pole_stat에서 가져올 예정
+                    }
+        
+        # pole_stat 데이터를 대시보드 형식으로 병합
+        if 'pole_stat' in additional_data:
+            for pole_id, pole_data in additional_data['pole_stat'].items():
+                if pole_id in dashboard_data:
+                    dashboard_data[pole_id]['battery_level'] = pole_data.get('battery_level', None)
+                    dashboard_data[pole_id]['is_lost'] = pole_data.get('is_lost', False)
+                    dashboard_data[pole_id]['tare_requested'] = pole_data.get('tare_requested', False)
+        
+        return dashboard_data
+        
+    except Exception as e:
+        print(f"❌ 대시보드용 데이터 변환 실패 (마지막 데이터 제외): {e}")
+        return {}
+
+def get_additional_history_data_for_dashboard() -> Dict[str, List]:
+    """
+    대시보드에서 사용할 수 있는 형태로 추가 히스토리 데이터를 변환합니다.
+    각 폴대별로 (timestamp, weight) 튜플 리스트를 반환합니다.
+    
+    Returns:
+        Dict[str, List]: 폴대별 히스토리 데이터
+    """
+    try:
+        additional_data = load_additional_data_from_json()
+        history_data = {}
+        
+        # loadcell_history 데이터를 대시보드 형식으로 변환
+        if 'loadcell_history' in additional_data:
+            for item in additional_data['loadcell_history']:
+                pole_id = str(item.get('loadcel'))
+                if pole_id not in history_data:
+                    history_data[pole_id] = []
+                
+                # 마지막 데이터가 아닌 경우에만 추가 (100g 이상)
+                weight = float(item.get('current_weight_history', 0))
+                if weight > 100:
+                    timestamp = item.get('timestamp', '')
+                    history_data[pole_id].append((timestamp, weight))
+        
+        # 각 폴대별로 최신 30개만 유지하고 시간순 정렬
+        for pole_id in history_data:
+            # 시간순 정렬 (최신순)
+            history_data[pole_id].sort(key=lambda x: x[0], reverse=True)
+            # 최신 30개만 유지
+            history_data[pole_id] = history_data[pole_id][:30]
+            # 시간순 정렬 (과거순, 그래프 표시용)
+            history_data[pole_id].sort(key=lambda x: x[0])
+        
+        return history_data
+        
+    except Exception as e:
+        print(f"❌ 대시보드용 히스토리 데이터 변환 실패: {e}")
+        return {}
+
 def get_combined_analysis_data() -> pd.DataFrame:
     """
     실제 DB 데이터와 추가 데이터를 병합하여 분석용 데이터프레임을 반환합니다.

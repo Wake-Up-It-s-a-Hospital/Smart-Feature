@@ -136,10 +136,12 @@ loadcell_data = st.session_state.get('loadcell_data', {})
 
 # 추가 데이터 로드 및 통합
 try:
-    from utils.dummy_data_utils import get_additional_data_for_dashboard, is_additional_data_available
+    from utils.dummy_data_utils import get_additional_data_for_dashboard_exclude_last, is_additional_data_available, get_additional_history_data_for_dashboard
     
     if is_additional_data_available():
-        additional_data = get_additional_data_for_dashboard()
+        additional_data = get_additional_data_for_dashboard_exclude_last()
+        additional_history = get_additional_history_data_for_dashboard()
+        
         # 추가 데이터를 session_state에 병합
         for pole_id, pole_data in additional_data.items():
             if pole_id not in loadcell_data:
@@ -147,6 +149,19 @@ try:
             else:
                 # 기존 데이터와 병합
                 loadcell_data[pole_id].update(pole_data)
+        
+        # 추가 히스토리 데이터를 session_state에 병합
+        if 'loadcell_history' not in st.session_state:
+            st.session_state.loadcell_history = {}
+        
+        for pole_id, history_list in additional_history.items():
+            if pole_id not in st.session_state.loadcell_history:
+                st.session_state.loadcell_history[pole_id] = []
+            # 기존 히스토리와 병합 (중복 제거)
+            existing_timestamps = {h[0] for h in st.session_state.loadcell_history[pole_id]}
+            for timestamp, weight in history_list:
+                if timestamp not in existing_timestamps:
+                    st.session_state.loadcell_history[pole_id].append((timestamp, weight))
         
         # 성공 메시지는 표시하지 않음 (사용자에게는 투명하게)
     else:

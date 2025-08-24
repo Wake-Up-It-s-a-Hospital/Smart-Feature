@@ -1,0 +1,65 @@
+{
+  "2": {
+    "pole_id": "2",
+    "battery_level": 3,
+    "is_lost": true,
+    "tare_requested": false,
+    "timestamp": "2025-08-25T02:12:15.285319+09:00"
+  },
+  "3": {
+    "pole_id": "3",
+    "battery_level": 1,
+    "is_lost": false,
+    "tare_requested": false,
+    "timestamp": "2025-08-25T02:12:15.285319+09:00"
+  },
+  "4": {
+    "pole_id": "4",
+    "battery_level": 2,
+    "is_lost": false,
+    "tare_requested": false,
+    "timestamp": "2025-08-25T02:12:15.285319+09:00"
+  },
+  "5": {
+    "pole_id": "5",
+    "battery_level": 3,
+    "is_lost": false,
+    "tare_requested": false,
+    "timestamp": "2025-08-25T02:12:15.285319+09:00"
+  },
+  "6": {
+    "pole_id": "6",
+    "battery_level": 1,
+    "is_lost": false,
+    "tare_requested": false,
+    "timestamp": "2025-08-25T02:12:15.285319+09:00"
+  },
+  "7": {
+    "pole_id": "7",
+    "battery_level": 2,
+    "is_lost": false,
+    "tare_requested": false,
+    "timestamp": "2025-08-25T02:12:15.285319+09:00"
+  },
+  "8": {
+    "pole_id": "8",
+    "battery_level": 3,
+    "is_lost": true,
+    "tare_requested": false,
+    "timestamp": "2025-08-25T02:12:15.285319+09:00"
+  },
+  "9": {
+    "pole_id": "9",
+    "battery_level": 3,
+    "is_lost": false,
+    "tare_requested": false,
+    "timestamp": "2025-08-25T02:12:15.285319+09:00"
+  },
+  "10": {
+    "pole_id": "10",
+    "battery_level": 3,
+    "is_lost": true,
+    "tare_requested": false,
+    "timestamp": "2025-08-25T02:12:15.286320+09:00"
+  }
+}
