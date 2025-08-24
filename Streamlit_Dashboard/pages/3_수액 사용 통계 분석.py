@@ -1368,57 +1368,156 @@ with st.expander("장비 군집화", expanded=False):
             except Exception as e:
                 st.warning(f"클러스터링 중 오류: {e}")
 
-with st.expander("예측: ARIMA 단기 예측", expanded=False):
-    if filtered_clean.empty:
-        st.info("데이터가 없어 예측을 수행할 수 없습니다.")
-    else:
-        sel_fc = st.selectbox(
-            "장비 선택(예측)",
-            filtered_clean['loadcel'].unique().tolist(),
-            key="fc_sel",
-            help="ARIMA 단기 예측을 수행할 장비입니다."
-        )
-        horizon = st.sidebar.slider("예측 구간(분)", 10, 240, 60, 10, key="fc_h")
-        series3 = filtered_clean[filtered_clean['loadcel'] == sel_fc].sort_values('timestamp')
-        s3 = series3[['timestamp', 'current_weight_history']].dropna()
-        if len(s3) < 20:
-            st.info("예측을 위한 데이터가 충분하지 않습니다.")
-        else:
-            s3 = s3.set_index('timestamp').asfreq('T')
-            s3['current_weight_history'] = s3['current_weight_history'].interpolate(limit_direction='both')
-            order_p = st.sidebar.slider("ARIMA p(예측)", 0, 3, 1, key="fc_p")
-            order_d = st.sidebar.slider("ARIMA d(예측)", 0, 2, 1, key="fc_d")
-            order_q = st.sidebar.slider("ARIMA q(예측)", 0, 3, 1, key="fc_q")
-            try:
-                model = ARIMA(s3['current_weight_history'], order=(order_p, order_d, order_q))
-                res = model.fit()
-                f = res.get_forecast(steps=horizon)
-                mean_fc = f.predicted_mean
-                ci = f.conf_int()
-                import plotly.graph_objs as go
-                figf = go.Figure()
-                figf.add_trace(go.Scatter(x=s3.index, y=s3['current_weight_history'], mode='lines', name='실제'))
-                figf.add_trace(go.Scatter(x=mean_fc.index, y=mean_fc.values, mode='lines', name='예측'))
-                figf.add_trace(go.Scatter(x=mean_fc.index, y=ci.iloc[:, 0], mode='lines', line=dict(width=0), showlegend=False))
-                figf.add_trace(go.Scatter(x=mean_fc.index, y=ci.iloc[:, 1], mode='lines', fill='tonexty', line=dict(width=0), name='예측 구간'))
-                figf.update_layout(title=f"장비 {sel_fc} - 단기 예측")
-                st.plotly_chart(figf, use_container_width=True)
-            except Exception as e:
-                st.warning(f"ARIMA 예측 중 오류: {e}")
-
 with st.expander("요일-시간대 히트맵 (평균 사용량)", expanded=False):
+    # 도움말 섹션 추가 (expander 대신 버튼으로 토글)
+    if "show_heatmap_help" not in st.session_state:
+        st.session_state.show_heatmap_help = False
+        
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.write("요일과 시간대별 수액 사용량 패턴을 색상으로 표시합니다")
+    with col2:
+        if st.button("❓ 도움말", key="help_heatmap_btn"):
+            st.session_state.show_heatmap_help = not st.session_state.show_heatmap_help
+    
+    # 도움말 내용 표시
+    if st.session_state.show_heatmap_help:
+        st.markdown("---")
+        col_help1, col_help2 = st.columns(2)
+        with col_help1:
+            st.markdown("# 📅 요일-시간대 히트맵 가이드")
+            st.markdown("""
+        **📊 요일-시간대 히트맵이란?**
+        
+        간단히 말하면: 일주일 중 각 요일과 하루 중 각 시간대별로 수액 사용량이 얼마나 많은지를 색상의 진하기로 표시하는 기능입니다.
+        
+        **🤔 왜 '히트맵(Heatmap)'이라는 이름을 사용할까요?**
+        
+        **히트맵(Heatmap)**: 
+        - 데이터의 값에 따라 색상의 진하기나 밝기를 다르게 표시하는 시각화 방법
+        - '열(Heat)'이 많은 부분은 진한 색, 적은 부분은 연한 색으로 표현
+        - 의료 환경에서는 '사용량이 많은 시간대'를 한눈에 파악 가능
+        
+        **📚 의학적 맥락에서의 의미:**
+        
+        **요일별 패턴**:
+        - 월요일~금요일: 평일 업무 패턴 (의료진 정기 근무)
+        - 토요일~일요일: 주말 업무 패턴 (응급 상황 위주)
+        - 공휴일: 특별한 패턴 (계절성 영향)
+        
+        **시간대별 패턴**:
+        - 새벽(0-6시): 야간 응급 상황
+        - 오전(6-12시): 아침 진료 및 수액 투여
+        - 오후(12-18시): 오후 진료 및 수액 교체
+        - 저녁(18-24시): 야간 교대 및 정리
+        
+        **예시로 설명하면:**
+        - 월요일 오전 9시에 수액 사용량이 가장 많은 이유는?
+        - 주말 밤에 사용량이 적은 이유는?
+        - 평일 오후 2시에 사용량이 증가하는 패턴은?
+        
+        **🎯 이 분석으로 무엇을 알 수 있나요?**
+        
+        1. **업무 패턴 최적화**
+           - 가장 바쁜 시간대와 한가한 시간대 파악
+           - 간호사 교대 시간대별 필요 인원 계획
+           - 수액 재고 준비 시점 최적화
+        
+        2. **자원 배분 효율화**
+           - 시간대별 수액 소모량 예측
+           - 장비 점검 및 유지보수 일정 계획
+           - 응급 상황 대비 체계 구축
+        
+        3. **비정상 패턴 감지**
+           - 예상과 다른 시간대별 사용량 변화
+           - 특정 요일에만 발생하는 이상 패턴
+           - 계절성이나 이벤트성 변화 영향
+        
+        **📈 색상 해석 가이드**
+        
+        **🔵 파란색 계열 (Blues 색상 스케일)**:
+        - **연한 파란색**: 사용량 적음 (0에 가까움)
+        - **중간 파란색**: 사용량 보통 (평균 수준)
+        - **진한 파란색**: 사용량 많음 (높은 수준)
+        - **가장 진한 파란색**: 사용량 매우 많음 (최고 수준)
+        """)
+            
+        with col_help2:
+            st.markdown("# 📊 그래프 해석 가이드")
+            st.markdown("""
+        ### **📋 히트맵 구조**
+        - **X축 (가로)**: 시간대 (0시~23시)
+        - **Y축 (세로)**: 요일 (월요일=0 ~ 일요일=6)
+        - **색상**: 각 셀의 수액 사용량 (kg 단위)
+        - **숫자**: 실제 사용량 값 (자동 표시)
+        
+        ### **🔍 패턴 해석 방법**
+        
+        **가로 방향 패턴 (시간대별)**:
+        - **새벽 시간대 (0-6시)**: 일반적으로 사용량 적음
+        - **오전 시간대 (6-12시)**: 진료 시작으로 사용량 증가
+        - **오후 시간대 (12-18시)**: 진료 피크로 사용량 최대
+        - **저녁 시간대 (18-24시)**: 진료 종료로 사용량 감소
+        
+        **세로 방향 패턴 (요일별)**:
+        - **월요일 (0)**: 주말 축적된 수요로 사용량 많음
+        - **화-목요일 (1-3)**: 안정적인 평일 패턴
+        - **금요일 (4)**: 주말 대비로 사용량 증가
+        - **토-일요일 (5-6)**: 응급 위주로 사용량 적음
+        
+        **🔍 특별한 패턴 해석**
+        
+        **높은 사용량 패턴 (진한 파란색)**:
+        - 해당 시간대에 집중적인 치료 진행
+        - 간호사 교대 시간과 일치하는지 확인
+        - 예상 가능한 패턴인지 검토
+        
+        **낮은 사용량 패턴 (연한 파란색)**:
+        - 해당 시간대에 치료 활동 적음
+        - 정상적인 업무 패턴인지 확인
+        - 비정상 상황일 가능성 검토
+        
+        ### **💡 실용적 활용 팁**
+                
+        **업무 계획 수립**:
+        - **고사용량 시간대**: 추가 인력 배치 고려
+        - **저사용량 시간대**: 장비 점검 및 유지보수 수행
+        - **주말 패턴**: 응급 대응 체계 점검
+        
+        **자원 관리**:
+        - **수액 재고**: 고사용량 시간대 대비 재고 확보
+        - **장비 배치**: 사용량 패턴에 따른 최적 위치 선정
+        - **인력 배치**: 업무량에 따른 교대 시간 조정
+        """)
+        
+        if st.button("도움말 닫기", key="close_heatmap_help"):
+            st.session_state.show_heatmap_help = False
+            st.rerun()
+    
+    # 기존 요일-시간대 히트맵 코드
     if filtered_clean.empty:
         st.info("데이터가 없어 히트맵을 만들 수 없습니다.")
     else:
         tmp2 = filtered_clean.copy().sort_values('timestamp')
         tmp2['prev_weight'] = tmp2.groupby('loadcel')['current_weight_history'].shift(1)
-        tmp2['usage'] = (tmp2['prev_weight'] - tmp2['current_weight_history']).clip(lower=0) / 1000
+        tmp2['usage'] = (tmp2['prev_weight'] - tmp2['current_weight_history']).clip(lower=0)  # kg 단위 유지
         tmp2['hour'] = tmp2['timestamp'].dt.hour
         tmp2['weekday'] = tmp2['timestamp'].dt.weekday
         heat = tmp2.groupby(['weekday', 'hour'])['usage'].mean().reset_index()
         heat_pivot = heat.pivot(index='weekday', columns='hour', values='usage').fillna(0)
-        figh = px.imshow(heat_pivot, text_auto=True, color_continuous_scale='Blues')
-        figh.update_layout(title="요일-시간대 평균 사용량(kg)")
+        
+        # kg을 g으로 변환 (1000 곱하기)
+        heat_pivot_g = heat_pivot * 1000
+        
+        figh = px.imshow(heat_pivot_g, text_auto=True, color_continuous_scale='Blues')
+        figh.update_layout(title="요일-시간대 평균 사용량(g)")
+        
+        # 히트맵 글자 크기 증가
+        figh.update_traces(
+            textfont=dict(size=30),  # 기본 크기에서 증가
+            selector=dict(type='heatmap')
+        )
+        
         st.plotly_chart(figh, use_container_width=True)
 
 with st.expander("장비 간 지연 상관분석 (Cross-Correlation)", expanded=False):
@@ -1568,3 +1667,41 @@ with st.expander("자기상관(ACF) / 부분자기상관(PACF)", expanded=False)
                 st.plotly_chart(figp, use_container_width=True)
             except Exception as e:
                 st.warning(f"ACF/PACF 계산 중 오류: {e}")
+                
+with st.expander("예측: ARIMA 단기 예측", expanded=False):
+    if filtered_clean.empty:
+        st.info("데이터가 없어 예측을 수행할 수 없습니다.")
+    else:
+        sel_fc = st.selectbox(
+            "장비 선택(예측)",
+            filtered_clean['loadcel'].unique().tolist(),
+            key="fc_sel",
+            help="ARIMA 단기 예측을 수행할 장비입니다."
+        )
+        horizon = st.sidebar.slider("예측 구간(분)", 10, 240, 60, 10, key="fc_h")
+        series3 = filtered_clean[filtered_clean['loadcel'] == sel_fc].sort_values('timestamp')
+        s3 = series3[['timestamp', 'current_weight_history']].dropna()
+        if len(s3) < 20:
+            st.info("예측을 위한 데이터가 충분하지 않습니다.")
+        else:
+            s3 = s3.set_index('timestamp').asfreq('T')
+            s3['current_weight_history'] = s3['current_weight_history'].interpolate(limit_direction='both')
+            order_p = st.sidebar.slider("ARIMA p(예측)", 0, 3, 1, key="fc_p")
+            order_d = st.sidebar.slider("ARIMA d(예측)", 0, 2, 1, key="fc_d")
+            order_q = st.sidebar.slider("ARIMA q(예측)", 0, 3, 1, key="fc_q")
+            try:
+                model = ARIMA(s3['current_weight_history'], order=(order_p, order_d, order_q))
+                res = model.fit()
+                f = res.get_forecast(steps=horizon)
+                mean_fc = f.predicted_mean
+                ci = f.conf_int()
+                import plotly.graph_objs as go
+                figf = go.Figure()
+                figf.add_trace(go.Scatter(x=s3.index, y=s3['current_weight_history'], mode='lines', name='실제'))
+                figf.add_trace(go.Scatter(x=mean_fc.index, y=mean_fc.values, mode='lines', name='예측'))
+                figf.add_trace(go.Scatter(x=mean_fc.index, y=ci.iloc[:, 0], mode='lines', line=dict(width=0), showlegend=False))
+                figf.add_trace(go.Scatter(x=mean_fc.index, y=ci.iloc[:, 1], mode='lines', fill='tonexty', line=dict(width=0), name='예측 구간'))
+                figf.update_layout(title=f"장비 {sel_fc} - 단기 예측")
+                st.plotly_chart(figf, use_container_width=True)
+            except Exception as e:
+                st.warning(f"ARIMA 예측 중 오류: {e}")
