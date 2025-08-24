@@ -1520,7 +1520,141 @@ with st.expander("요일-시간대 히트맵 (평균 사용량)", expanded=False
         
         st.plotly_chart(figh, use_container_width=True)
 
-with st.expander("장비 간 지연 상관분석 (Cross-Correlation)", expanded=False):
+with st.expander("장비 간 상호 상관관계 분석", expanded=False):
+    # 도움말 섹션 추가 (expander 대신 버튼으로 토글)
+    if "show_crosscorr_help" not in st.session_state:
+        st.session_state.show_crosscorr_help = False
+        
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.write("두 장비 간의 시간 지연을 고려한 상관관계를 분석합니다")
+    with col2:
+        if st.button("❓ 도움말", key="help_crosscorr_btn"):
+            st.session_state.show_crosscorr_help = not st.session_state.show_crosscorr_help
+    
+    # 도움말 내용 표시
+    if st.session_state.show_crosscorr_help:
+        st.markdown("---")
+        col_help1, col_help2 = st.columns(2)
+        with col_help1:
+            st.markdown("# 🔗 장비 간 상호 상관관계 분석 가이드")
+            st.markdown("""
+        **📊 장비 간 상호 상관관계 분석이란?**
+        
+        간단히 말하면: 두 링거폴대(수액 거치대)의 사용량이 시간적으로 얼마나 지연되어 연관되어 있는지 분석하는 기능입니다.
+        
+        **🤔 왜 'Cross-Correlation'이라는 이름을 사용할까요?**
+        
+        **Cross-Correlation (교차 상관)**: 
+        - 두 개의 서로 다른 시계열 데이터 간의 상관관계를 분석
+        - 'Cross'는 '교차'를 의미하며, 서로 다른 장비 간의 관계를 나타냄
+        - 'Correlation'은 상관관계를 의미하며, 얼마나 연관되어 있는지를 측정
+        
+        **📚 의학적 맥락에서의 의미:**
+        
+        **지연(Lag)의 의미**:
+        - **양의 지연**: A 장비가 먼저 사용되고, B 장비가 나중에 사용
+        - **음의 지연**: B 장비가 먼저 사용되고, A 장비가 나중에 사용
+        - **0 지연**: 두 장비가 동시에 사용됨
+        
+        **실제 활용 예시**:
+        - 간호사가 A 폴대에서 수액을 교체한 후 B 폴대로 이동하는 시간
+        - 특정 치료 순서에 따른 장비 사용 순서
+        - 병실 배치에 따른 업무 흐름의 영향
+        
+        **예시로 설명하면:**
+        - A 폴대 사용량이 증가한 후 15분 뒤에 B 폴대 사용량이 증가한다면?
+        - 두 폴대가 동시에 사용되는 패턴이 있는지?
+        - 어떤 폴대가 항상 먼저 사용되는지?
+        
+        **🎯 이 분석으로 무엇을 알 수 있나요?**
+        
+        1. **업무 흐름 최적화**
+           - 간호사의 업무 순서와 이동 경로 파악
+           - 장비 사용의 시간적 순서 이해
+           - 효율적인 업무 프로세스 설계
+        
+        2. **병실 배치 계획**
+           - 함께 사용되는 장비들의 최적 배치
+           - 간호사 이동 거리 최소화
+           - 업무 효율성 향상을 위한 공간 설계
+        
+        3. **예측 및 계획 수립**
+           - 한 장비 사용 후 다른 장비 사용 시점 예측
+           - 수액 교체 일정의 최적화
+           - 인력 배치의 시간적 계획
+        
+        **📈 지연 설정 가이드**
+        
+        **🔴 5-15분**: 단기 지연
+        - 같은 간호사가 연속으로 관리하는 장비들
+        - 빠른 업무 전환 상황
+        
+        **🟠 15-30분**: 중기 지연
+        - 일반적인 업무 순환 패턴
+        - 병실 간 이동 시간 고려
+        
+        **🟢 30-120분**: 장기 지연
+        - 교대 시간대별 패턴
+        - 치료 일정에 따른 지연
+        """)
+            
+        with col_help2:
+            st.markdown("# 📊 그래프 해석 가이드")
+            st.markdown("""
+        ### **📋 지연 상관분석 결과**
+        - **X축**: 지연 시간 (분 단위, 음수는 B가 먼저, 양수는 A가 먼저)
+        - **Y축**: 상관계수 (-1 ~ +1, 절댓값이 클수록 강한 상관관계)
+        - **막대 높이**: 각 지연 시간에서의 상관관계 강도
+        
+        ### **📈 막대 그래프 해석**
+        
+        **가로축 (지연 시간)**:
+        - **0**: 두 장비가 동시에 사용됨
+        - **+15**: A 장비 사용 후 15분 뒤 B 장비 사용
+        - **-20**: B 장비 사용 후 20분 뒤 A 장비 사용
+        
+        **세로축 (상관계수)**:
+        - **+0.8**: 매우 강한 양의 상관관계
+        - **+0.5**: 중간 정도의 양의 상관관계
+        - **0.0**: 상관관계 없음
+        - **-0.5**: 중간 정도의 음의 상관관계
+        
+        **🔍 그래프 패턴 해석**
+        
+        **높은 막대가 양의 지연에 위치**:
+        - A 장비가 먼저 사용되고 B 장비가 나중에 사용
+        - A → B 순서의 업무 흐름 존재
+        - 간호사가 A에서 B로 이동하는 패턴
+        
+        **높은 막대가 음의 지연에 위치**:
+        - B 장비가 먼저 사용되고 A 장비가 나중에 사용
+        - B → A 순서의 업무 흐름 존재
+        - 다른 업무 순서나 우선순위
+        
+        **높은 막대가 0 지연에 위치**:
+        - 두 장비가 동시에 사용됨
+        - 같은 간호사가 동시에 관리
+        - 긴급 상황이나 특별한 치료
+        
+        ### **💡 실용적 활용 팁**
+                
+        **업무 최적화**:
+        - **높은 상관관계 지연**: 해당 시간만큼 여유를 두고 업무 계획
+        - **동시 사용 패턴**: 두 장비를 같은 간호사가 담당하도록 배치
+        - **순차적 사용 패턴**: 업무 순서를 지연 시간에 맞춰 조정
+        
+        **병실 배치**:
+        - **짧은 지연**: 가까운 위치에 배치
+        - **긴 지연**: 업무 흐름을 고려한 배치
+        - **동시 사용**: 같은 구역에 배치
+        """)
+        
+        if st.button("도움말 닫기", key="close_crosscorr_help"):
+            st.session_state.show_crosscorr_help = False
+            st.rerun()
+    
+    # 기존 장비 간 지연 상관분석 코드
     if filtered_clean.empty or len(filtered_clean['loadcel'].unique()) < 2:
         st.info("두 개 이상의 장비 데이터가 필요합니다.")
     else:
@@ -1564,7 +1698,7 @@ with st.expander("장비 간 지연 상관분석 (Cross-Correlation)", expanded=
                 return float(np.corrcoef(x, y)[0, 1])
             vals = [corr_at_lag(k) for k in lags]
             figcc = px.bar(x=list(lags), y=vals, labels={'x': '지연(분)', 'y': '상관'})
-            figcc.update_layout(title=f"장비 {a} vs {b} 지연 상관")
+            figcc.update_layout(title=f"장비 {a}, 장비 {b}의 지연 상관")
             st.plotly_chart(figcc, use_container_width=True)
             # 최대 상관 지연 표시 (NaN 제외)
             valid = [(lag, v) for lag, v in zip(lags, vals) if v == v]
